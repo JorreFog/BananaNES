@@ -417,6 +417,10 @@ void X6502_Run(int32_t cycles)
 	int32_t lcount = X.count, ltcount = X.tcount;
 	uint32_t lts = 0;
 	int32_t snd_acc = 0, snd_due = FCEU_SoundHookDue();
+	/* the code page the PC is in (plain cart ROM): the opcode fetch skips the page-type lookup; dropped whenever a
+	 * handler ran (a mapper write may have switched banks) */
+	uint32_t cp_page = 0xFFFF;
+	const uint8_t *cp_ptr = NULL;
 
 	pbackus = X.PC;
 
@@ -452,7 +456,7 @@ void X6502_Run(int32_t cycles)
 		if (!overclocked) sound_timestamp += lts;		\
 		lts = 0;										\
 	}
-	#define SYNC_IN() { lcount = X.count; ltcount = X.tcount; }
+	#define SYNC_IN() { lcount = X.count; ltcount = X.tcount; cp_page = 0xFFFF; }
 	/* the APU hook only counts down between its events: apply what is owed before the APU registers are touched */
 	#define SND_OWED() { if (snd_acc) { FCEU_SoundCPUHook(snd_acc); snd_acc = 0; } }
 	#define RdMem(A_) ({										\
@@ -545,7 +549,13 @@ void X6502_Run(int32_t cycles)
 
 		_PI = _P;
 		BST(insn);
-		b1 = RdMem(_PC);
+		if (__builtin_expect((_PC >> 11) == cp_page, 1)) {
+			b1 = cp_ptr[_PC];
+			_DB = b1;
+		} else {
+			b1 = RdMem(_PC);
+			if (rdplain[_PC >> 11] == 2) { cp_page = _PC >> 11; cp_ptr = Page[cp_page]; }
+		}
 
 		ADDCYC(CycTable[b1]);
 
