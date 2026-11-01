@@ -112,6 +112,20 @@ main:
 nmi:
   pha
   inc fcnt
+  ; colour emphasis bits cycle every 16 frames (0 = none for 1/8 of the time): the emphasis path of the PPU
+  lda fcnt
+  lsr
+  lsr
+  lsr
+  lsr
+  and #7
+  asl
+  asl
+  asl
+  asl
+  asl
+  ora #$0A
+  sta $2001
   lda #0
   sta $2005
   sta $2005

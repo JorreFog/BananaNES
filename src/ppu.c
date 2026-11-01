@@ -706,6 +706,7 @@ static void Fixit1(void) {
 }
 
 void MMC5_hb(int);		/* Ugh ugh ugh. */
+static int emph_frames;
 static void DoLine(void)
 {
 	int x, colour_emphasis;
@@ -781,9 +782,16 @@ static void DoLine(void)
 #endif
 	}
 
-	/* write the actual colour emphasis */
+	/* write the actual colour emphasis (BananaNES: XDBuf is all zero unless a game uses the emphasis bits, so the 256-byte fill
+	 * per line is skipped until one does and for two frames after it, so stale rows are always overwritten) */
 	(void)colour_emphasis;
-	memset(dtarget, PPU[1] >> 5, 256);
+	{
+		uint8_t e = PPU[1] >> 5;
+		if (e || emph_frames) {
+			memset(dtarget, e, 256);
+			if (e) emph_frames = 2;
+		}
+	}
 
     sphitx = 0x100;
 
@@ -1282,6 +1290,7 @@ void FCEUPPU_Power(void) {
 
 
 int FCEUPPU_Loop(int skip) {
+	if (emph_frames > 0) emph_frames--;
 	/* Needed for Knight Rider, possibly others. */
 	if (ppudead) {
 		memset(XBuf, 0x80, 256 * 240);
