@@ -17,3 +17,4 @@ Base = upstream libretro-fceumm 7a542da (BananaOS 0.5.0 pin): host 2.38 s.
 | 7 | sprite-on-line bit mask (NEON vld4 on aarch64) instead of scanning 64 OAM entries per line | host neutral; device pending | kept (exact) |
 | 8 | NEON palette -> RGB565/XRGB8888 row blit (vqtbl4), scalar fallback for odd rows | device pending | kept (exact) |
 | 9 | opcode-fetch code-page cache | host neutral; device pending | tentative |
+| 10 | $2002 reads flush the partial line only when a sprite-0 hit can appear (polling games did ~2600 RefreshLine calls a frame) | not exact: video CRC differs by 8 pixels of one line in the scene where rendering is switched on mid-line (stale BG pipeline) | dropped |

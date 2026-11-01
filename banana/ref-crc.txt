@@ -1,7 +1,7 @@
 irqtest-vrc3.nes 118f79f9 7200 video_crc=cb89dc7e audio_crc=253cfc97 srm_crc=00000000 state_crc=14bec17e 
-stress-nes-L1.nes 8ac1001c 10800 video_crc=b1d283a1 audio_crc=83d6974f srm_crc=f737a3ed state_crc=3c461412 
-stress-nes.nes db9dce77 10800 video_crc=9bb97d68 audio_crc=01e6b1fc srm_crc=e57f8f0e state_crc=6a3e50b1 
-stress-nes-L10.nes 922c74a1 10800 video_crc=fec0a1c1 audio_crc=fdf39c91 srm_crc=39e700a5 state_crc=fd3ec6f9 
+stress-nes-L1.nes 20fca5d4 10800 video_crc=9530c7cd audio_crc=3bedb983 srm_crc=d4b44e40 state_crc=b5d1c53e 
+stress-nes.nes 84e19390 10800 video_crc=2ed2a646 audio_crc=dde2f900 srm_crc=e999079c state_crc=306ae013 
+stress-nes-L10.nes 5e74c38f 10800 video_crc=0d8c3e32 audio_crc=82352c2c srm_crc=2ac06643 state_crc=b0c76800 
 240p-test-suite.nes 06b44b6c 7200 video_crc=f819bd89 audio_crc=10287946 srm_crc=00000000 state_crc=966ab8d0 
 nova-the-squirrel.nes ecc08609 7200 video_crc=b2853ddc audio_crc=464d7c29 srm_crc=12523924 state_crc=890f8649 
 thwaite.nes 60c2367d 7200 video_crc=dac081f5 audio_crc=b22f0bb4 srm_crc=00000000 state_crc=3835a1d9 

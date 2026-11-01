@@ -99,6 +99,7 @@ sub:        .res 1
 wave_amp:   .res 1
 txtpos:     .res 1
 irq_mode:   .res 1
+poll_spin:  .res 1
 col_rows:   .res 1
 attr_end:   .res 1
 dbg:        .res 1
@@ -226,6 +227,11 @@ main:
   lda nmi_flag
   bne @late
 @wait:
+  lda poll_spin
+  beq @nopoll
+  bit PPUSTATUS          ; games that busy-wait on $2002 instead of sleeping until the NMI: a status read every few cycles
+  bit PPUSTATUS
+@nopoll:
   lda nmi_flag
   beq @wait
   jmp @go
@@ -1633,6 +1639,7 @@ phase_init:
   sta scy
   sta nent
   sta irq_mode
+  sta poll_spin
   sta APU_STATUS
   lda #26
   sta col_rows
@@ -1669,6 +1676,8 @@ phase_init:
 
 ; =========================================================== PHASE 0: TITLE / ATTRACT (light)
 p0_init:
+  lda #1
+  sta poll_spin
   lda #0
   sta ppuctrl_b
   sta cam
@@ -2645,6 +2654,8 @@ burst:
 
 ; ===========================================================  PHASE 4: TOWN RPG (Dragon Quest / Zelda 2 pattern): slow scroll, NPCs, text box + IRQ split
 p4_init:
+  lda #1
+  sta poll_spin
   lda #20
   sta col_rows           ; the text window (rows 24..29 of nametable 0) is not streamed over
   lda #6
@@ -3067,6 +3078,8 @@ p5_upd:
 
 ; ===========================================================  PHASE 6: LOADS (scene transitions, render off, bulk uploads, RAM-executed code, SRAM writes)
 p6_init:
+  lda #1
+  sta poll_spin
   lda #$00
   sta ppuctrl_b
   lda #<pal_plat
