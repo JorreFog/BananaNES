@@ -25,6 +25,7 @@
 #include "x6502.h"
 #include "fceu.h"
 #include "sound.h"
+#include "banana.h"
 
 X6502 X;
 uint8_t encryptOpcodes = 0;
@@ -55,11 +56,30 @@ void FP_FASTAPASS(1) (*MapIRQHook)(int a);
 	if (!overclocked) sound_timestamp +=  __x; \
 }
 
+#ifdef BANANA_STATS
+static INLINE void bst_w(uint32_t A) {
+	if (A >= 0x8000) BST(mapper_w);
+	else if (A >= 0x6000) BST(sram_w);
+	else if (A >= 0x4000) { if (A == 0x4014) BST(oamdma); else BST(apu_w); }
+	else if (A >= 0x2000) bstat.ppu_w[A & 7]++;
+}
+static INLINE void bst_r(uint32_t A) {
+	if (A >= 0x2000 && A < 0x4000) { if ((A & 7) == 2) BST(ppu_r2002); else if ((A & 7) == 7) BST(ppu_r2007); }
+}
+#define BST_W(A) bst_w(A)
+#define BST_R(A) bst_r(A)
+#else
+#define BST_W(A) ((void)0)
+#define BST_R(A) ((void)0)
+#endif
+
 static INLINE uint8_t RdMemNorm(uint32_t A) {
+	BST_R(A);
 	return(_DB = ARead[A](A));
 }
 
 static INLINE void WrMemNorm(uint32_t A, uint8_t V) {
+	BST_W(A);
 	BWrite[A](A, V);
 }
 
@@ -415,6 +435,7 @@ void X6502_Run(int32_t cycles)
 				_IRQlow |= FCEU_IQNMI;
 			} else if (_IRQlow & FCEU_IQNMI) {
 				if (!_jammed) {
+					BST(nmi);
 					ADDCYC(7);
 					PUSH(_PC >> 8);
 					PUSH(_PC);
@@ -426,6 +447,7 @@ void X6502_Run(int32_t cycles)
 				}
 			} else {
 				if (!(_PI & I_FLAG) && !_jammed) {
+					BST(irq);
 					ADDCYC(7);
 					PUSH(_PC >> 8);
 					PUSH(_PC);
@@ -446,6 +468,7 @@ void X6502_Run(int32_t cycles)
 		}
 
 		_PI = _P;
+		BST(insn);
 		b1 = RdMem(_PC);
 
 		ADDCYC(CycTable[b1]);

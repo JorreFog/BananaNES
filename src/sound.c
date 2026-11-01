@@ -27,6 +27,7 @@
 
 #include "fceu.h"
 #include "sound.h"
+#include "banana.h"
 #include "filter.h"
 #include "state.h"
 
@@ -507,6 +508,7 @@ static INLINE void DMCDMA(void) {
 		X6502_DMR(0x8000 + DMCAddress);
 		DMCDMABuf = X6502_DMR(0x8000 + DMCAddress);
 		DMCHaveDMA = 1;
+		BST(dmc_bytes);
 		DMCAddress = (DMCAddress + 1) & 0x7fff;
 		DMCSize--;
 		if (!DMCSize) {

@@ -24,6 +24,7 @@
 
 #include        "fceu-types.h"
 #include        "x6502.h"
+#include        "banana.h"
 #include        "fceu.h"
 #include        "ppu.h"
 #include        "nsf.h"
@@ -886,6 +887,9 @@ static void FetchSpriteData(void) {
 				ns++;
 			} else {
 				PPU_status |= 0x20;
+#ifdef BANANA_STATS
+				BST(spr_over8_lines);
+#endif
 				break;
 			}
 		}
@@ -965,6 +969,10 @@ static void FetchSpriteData(void) {
 	}
 	numsprites = ns;
 	SpriteBlurp = sb;
+#ifdef BANANA_STATS
+	BSTN(spr_total, ns);
+	if (ns > bstat.spr_max_line) bstat.spr_max_line = ns;
+#endif
 }
 
 static void RefreshSprites(void) {

@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
+#include "../../banana.h"
 #include <ctype.h>
 
 #ifdef _MSC_VER
@@ -1908,6 +1909,9 @@ static void check_system_specs(void)
 
 void retro_init(void)
 {
+#ifdef BANANA_PROF
+   banana_prof_start();
+#endif
    bool achievements = true;
    log_cb.log=default_logger;
    environ_cb(RETRO_ENVIRONMENT_GET_LOG_INTERFACE, &log_cb);
@@ -2019,6 +2023,9 @@ static void FCEUD_RegionOverride(unsigned region)
 
 void retro_deinit (void)
 {
+#ifdef BANANA_PROF
+   banana_prof_stop();
+#endif
    FCEUI_CloseGame();
    FCEUI_Sound(0);
    FCEUI_Kill();
@@ -3376,6 +3383,9 @@ void retro_run(void)
 #endif
 
    retro_run_blit(gfx);
+#ifdef BANANA_STATS
+   banana_stats_frame();
+#endif
 
    stereo_filter_apply(sound, ssize);
 #ifdef HAVE_HDPACK

@@ -71,11 +71,19 @@ int main(int argc, char **argv) {
         else if (!strcmp(argv[i], "-r") && i + 1 < argc) ramout = argv[++i];
         else if (!strcmp(argv[i], "-t") && i + 1 < argc) stout = argv[++i];
     }
+    #ifdef STATIC_CORE
+    void *h = NULL;
+#else
     void *h = dlopen(argv[1], RTLD_NOW | RTLD_LOCAL); if (!h) { fprintf(stderr, "dlopen: %s\n", dlerror()); return 1; }
+#endif
+#ifdef STATIC_CORE
+#define SYM(n) __typeof__(&n) n##_f = n;
+#else
 #define SYM(n) __typeof__(&n) n##_f = dlsym(h, #n); if (!n##_f) { fprintf(stderr, "missing " #n "\n"); return 1; }
+#endif
     SYM(retro_set_environment) SYM(retro_set_video_refresh) SYM(retro_set_audio_sample) SYM(retro_set_audio_sample_batch)
     SYM(retro_set_input_poll) SYM(retro_set_input_state) SYM(retro_init) SYM(retro_load_game) SYM(retro_run) SYM(retro_get_system_av_info)
-    SYM(retro_get_memory_data) SYM(retro_get_memory_size) SYM(retro_serialize_size) SYM(retro_serialize) SYM(retro_unload_game)
+    SYM(retro_deinit) SYM(retro_get_memory_data) SYM(retro_get_memory_size) SYM(retro_serialize_size) SYM(retro_serialize) SYM(retro_unload_game)
     retro_set_environment_f(env); retro_init_f();
     retro_set_video_refresh_f(video); retro_set_audio_sample_f(audio_one); retro_set_audio_sample_batch_f(audio_batch);
     retro_set_input_poll_f(input_poll); retro_set_input_state_f(input_state);
@@ -86,7 +94,7 @@ int main(int argc, char **argv) {
     struct retro_system_av_info av; retro_get_system_av_info_f(&av);
     struct timespec t0, t1; clock_gettime(CLOCK_MONOTONIC, &t0);
     const char *tr = getenv("NESRUN_TRACE"); long tr0 = tr ? atol(tr) : -1;
-    struct { int32_t tcount; uint16_t PC; uint8_t A, X, Y, S, P, mooPI, jammed; } *xs = dlsym(h, "X");
+    struct { int32_t tcount; uint16_t PC; uint8_t A, X, Y, S, P, mooPI, jammed; } *xs = h ? dlsym(h, "X") : NULL;
     for (fno = 0; fno < frames; fno++) { retro_run_f(); if (tr0 >= 0 && fno >= tr0 && xs) { uint8_t *rm = retro_get_memory_data_f(RETRO_MEMORY_SYSTEM_RAM); printf("f%ld PC=%04x S=%02x ram0=%02x %02x %02x\n", fno, xs->PC, xs->S, rm[0], rm[1], rm[2]); } }
     clock_gettime(CLOCK_MONOTONIC, &t1);
     double sec = (t1.tv_sec - t0.tv_sec) + (t1.tv_nsec - t0.tv_nsec) / 1e9;
@@ -98,6 +106,6 @@ int main(int argc, char **argv) {
     if (ss) { void *b = calloc(1, ss); if (retro_serialize_f(b, ss)) { stcrc = crc_upd(0, b, ss); if (stout) { FILE *f = fopen(stout, "wb"); if (f) { fwrite(b, 1, ss, f); fclose(f); } } } free(b); }
     printf("frames=%ld video_crc=%08x frames_out=%lu audio_crc=%08x audio_samples=%lu srm_crc=%08x srm_size=%zu state_crc=%08x state_size=%zu fmt=%d rate=%.0f fps=%.3f host_s=%.2f host_fps=%.0f\n",
            frames, vcrc, (unsigned long)vframes, acrc, (unsigned long)asamples, scrc, rn, stcrc, ss, pf, av.timing.sample_rate, av.timing.fps, sec, frames / sec);
-    { struct { int32_t tcount; uint16_t PC; uint8_t A, X, Y, S, P, mooPI, jammed; } *x = dlsym(h, "X"); if (x) printf("cpu PC=%04x A=%02x X=%02x Y=%02x S=%02x P=%02x jammed=%d\n", x->PC, x->A, x->X, x->Y, x->S, x->P, x->jammed); }
-    retro_unload_game_f(); if (fcrc) fclose(fcrc); return 0;
+    { struct { int32_t tcount; uint16_t PC; uint8_t A, X, Y, S, P, mooPI, jammed; } *x = h ? dlsym(h, "X") : NULL; if (x) printf("cpu PC=%04x A=%02x X=%02x Y=%02x S=%02x P=%02x jammed=%d\n", x->PC, x->A, x->X, x->Y, x->S, x->P, x->jammed); }
+    retro_unload_game_f(); retro_deinit_f(); if (fcrc) fclose(fcrc); return 0;
 }

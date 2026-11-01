@@ -1,0 +1,3 @@
+stress-nes-L1.nes cbae2079 10800 video_crc=eef93561 audio_crc=9a34801c srm_crc=69424442 state_crc=44f4517a 
+stress-nes.nes cc8e466a 10800 video_crc=143d5730 audio_crc=6dbb3718 srm_crc=df303d10 state_crc=8e0d7695 
+stress-nes-L10.nes 6fde3943 10800 video_crc=3417a13a audio_crc=c5813788 srm_crc=b769edd9 state_crc=76e05f68 
