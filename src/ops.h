@@ -81,11 +81,11 @@ case 0x6C:
 case 0x20: /* JSR */
 			{
 			uint8_t npc;
-			npc=RdMem(_PC);
+			npc=RdOp();
 			_PC++;
 			PUSH(_PC>>8);
 			PUSH(_PC);
-			_PC=RdMem(_PC)<<8;
+			_PC=RdOp()<<8;
 			_PC|=npc;
 			}
 			break;

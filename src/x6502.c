@@ -125,7 +125,7 @@ static uint8_t ZNTable[256];
 	{												\
 		uint32_t tmp;									\
 		int32_t disp;									\
-		disp = (int8_t)RdMem(_PC);					\
+		disp = (int8_t)RdOp();					\
 		_PC++;										\
 		ADDCYC(1);									\
 		tmp = _PC;									\
@@ -217,9 +217,9 @@ static uint8_t ZNTable[256];
 
 /* Absolute */
 #define GetAB(target) {								\
-	target = RdMem(_PC);							\
+	target = RdOp();							\
 	_PC++;											\
-	target |= RdMem(_PC) << 8;						\
+	target |= RdOp() << 8;						\
 	_PC++;											\
 }
 
@@ -248,20 +248,20 @@ static uint8_t ZNTable[256];
 
 /* Zero Page */
 #define GetZP(target) {								\
-	target = RdMem(_PC);							\
+	target = RdOp();							\
 	_PC++;											\
 }
 
 /* Zero Page Indexed */
 #define GetZPI(target, i) {							\
-	target = i + RdMem(_PC);						\
+	target = i + RdOp();						\
 	_PC++;											\
 }
 
 /* Indexed Indirect */
 #define GetIX(target) {								\
 	uint8_t tmp;										\
-	tmp = RdMem(_PC);								\
+	tmp = RdOp();								\
 	_PC++;											\
 	tmp += _X;										\
 	target = RdRAM(tmp);							\
@@ -273,7 +273,7 @@ static uint8_t ZNTable[256];
 #define GetIYRD(target) {							\
 	uint32_t rt;										\
 	uint8_t tmp;										\
-	tmp = RdMem(_PC);								\
+	tmp = RdOp();								\
 	_PC++;											\
 	rt = RdRAM(tmp);								\
 	tmp++;											\
@@ -291,7 +291,7 @@ static uint8_t ZNTable[256];
 #define GetIYWR(target) {							\
 	uint32_t rt;										\
 	uint8_t tmp;										\
-	tmp = RdMem(_PC);								\
+	tmp = RdOp();								\
 	_PC++;											\
 	rt = RdRAM(tmp);								\
 	tmp++;											\
@@ -317,7 +317,7 @@ redundant) on the variable "x".
 #define RMW_ZP(op)      { uint8_t A; uint8_t x; GetZP(A); x = RdRAM(A); op; WrRAM(A, x); break; }
 #define RMW_ZPX(op)     { uint8_t A; uint8_t x; GetZPI(A, _X); x = RdRAM(A); op; WrRAM(A, x); break; }
 
-#define LD_IM(op)       { uint8_t x; x = RdMem(_PC); _PC++; op; break; }
+#define LD_IM(op)       { uint8_t x; x = RdOp(); _PC++; op; break; }
 #define LD_ZP(op)       { uint8_t A; uint8_t x; GetZP(A); x = RdRAM(A); op; break; }
 #define LD_ZPX(op)      { uint8_t A; uint8_t x; GetZPI(A, _X); x = RdRAM(A); op; break; }
 #define LD_ZPY(op)      { uint8_t A; uint8_t x; GetZPI(A, _Y); x = RdRAM(A); op; break; }
@@ -470,6 +470,8 @@ void X6502_Run(int32_t cycles)
 	/* the APU hook only counts down between its events: apply what is owed before the APU registers are touched */
 	#define SND_OWED() { if (!lover) { int32_t _o = (snd_base - cb_cons) / 48; if (_o) FCEU_SoundCPUHook(_o); snd_base = cb_cons; } }
 	#define SND_REFRESH() { snd_due = FCEU_SoundHookDue(); lsnd_lim = snd_base - 48 * snd_due; }
+	/* operand byte at the PC: from the cached code page when it is in it */
+	#define RdOp() (__builtin_expect((_PC >> 11) == cp_page, 1) ? (ldb = cp_ptr[_PC]) : RdMem(_PC))
 	#define RdMem(A_) ({										\
 		uint32_t _ma = (A_);								\
 		uint8_t _mv;										\
@@ -626,6 +628,7 @@ void X6502_Run(int32_t cycles)
 	#undef RdRAM
 	#undef ADDCYC
 	#undef RdMem
+	#undef RdOp
 	#undef WrMem
 	#define _DB X.DB
 	#define _A X.A
