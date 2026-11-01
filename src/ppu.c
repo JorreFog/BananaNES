@@ -158,6 +158,15 @@ static uint16_t fceu_bg_pair_lut[256];
 static void FCEU_BuildBgPairLUT(void)
 {
 	int b;
+	/* BananaNES: the table is a pure function of PALRAM[0..15] (with the priority bits RefreshLine ORs in), and
+	 * RefreshLine runs ~500 times a frame while the palette changes a few times a second: rebuild only when the
+	 * 16 bytes differ from the last build (was 14 % of the whole core on the stress ROM). */
+	static uint8_t lut_key[16];
+	static int lut_valid;
+	if (lut_valid && !memcmp(lut_key, PALRAM, 16))
+		return;
+	memcpy(lut_key, PALRAM, 16);
+	lut_valid = 1;
 	for (b = 0; b < 256; b++)
 	{
 #ifdef MSB_FIRST
