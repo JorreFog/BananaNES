@@ -8,6 +8,7 @@ H=$(dirname "$(readlink -f "$0")")
 for ct in "$@"; do
   core=${ct%%:*}; tag=${ct##*:}
   if [ "$PIN" != 0 ]; then export PIN_KHZ=$PIN; else unset PIN_KHZ; fi
+  case $tag in *direct*) export BF_ENV="BANANAFRONT_DIRECT=1";; *) unset BF_ENV;; esac
   "$H/devrun-nes.sh" "$DEV" nes "$core" "$ROM" "$SEC" "$tag" >/dev/null 2>&1 || echo "run $tag failed" >&2
 done
 for ct in "$@"; do

@@ -29,7 +29,7 @@ ifeq ($(HAVE_HDPACK),1)
 endif
 CFLAGS := $(SYSFLAGS) $(ARCH_FLAGS) $(OPT) -DNDEBUG -fPIC -pipe -fno-plt $(COREDEFINES) $(BANANA_DEFS) -DGIT_VERSION=\"banana\" \
           -Wno-write-strings -Wno-unused-result $(INCFLAGS)
-LDFLAGS := $(SYSFLAGS) -shared -Wl,--version-script=$(CORE_DIR)/drivers/libretro/link.T -Wl,-no-undefined -Wl,-O1 -Wl,--as-needed $(ARCH_FLAGS) $(OPT) $(LTO_LD)
+LDFLAGS := $(SYSFLAGS) -fPIC -shared -Wl,--version-script=$(CORE_DIR)/drivers/libretro/link.T -Wl,-no-undefined -Wl,-O1 -Wl,--as-needed $(ARCH_FLAGS) $(OPT) $(LTO_LD)
 OBJS := $(patsubst $(CORE_DIR)/%.c,$(BDIR)/%.o,$(SOURCES_C))
 TARGET := $(BDIR)/banananes_libretro.so
 all: $(TARGET)
