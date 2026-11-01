@@ -4,7 +4,8 @@
 export NESRUN_AUTOPLAY=1
 H=$(cd "$(dirname "$0")/../.." && pwd); B=$1; M=$2; bad=0
 for opt in "fceumm_region=PAL" "fceumm_region=Dendy" "fceumm_sndquality=High" "fceumm_sndquality=Very High" "fceumm_sndlowpass=enabled" \
-           "fceumm_nospritelimit=enabled" "fceumm_overclocking=2x-Postrender" "fceumm_swapduty=enabled" "fceumm_apu_1=disabled"; do
+           "fceumm_nospritelimit=enabled" "fceumm_overclocking=2x-Postrender" "fceumm_swapduty=enabled" "fceumm_apu_1=disabled" \
+           "fceumm_ntsc_filter=composite" "fceumm_palette=pal" "fceumm_overscan_h_left=8" "fceumm_overscan_v_top=8"; do
   for r in $H/stressrom/out/stress-nes.nes $H/stressrom/out/irqtest-vrc3.nes $H/banana/roms/thwaite.nes; do
     a=$(~/banana-emu/bin/nesrun $B $r 3000 -v "$opt" | tr ' ' '\n' | grep -E "^(video|audio|state|srm)_crc" | tr '\n' ' ')
     b=$(~/banana-emu/bin/nesrun $M $r 3000 -v "$opt" | tr ' ' '\n' | grep -E "^(video|audio|state|srm)_crc" | tr '\n' ' ')
