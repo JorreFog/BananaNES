@@ -14,7 +14,7 @@ WANT_32BPP ?= 1
 PGO_DIR ?= $(ROOT)/banana/pgo
 ifeq ($(NO_PGO)$(HOST),)
 ifneq ($(wildcard $(PGO_DIR)/ppu.gcda),)
-PGOFLAGS := -fprofile-use -fprofile-correction -Wno-missing-profile -Wno-coverage-mismatch
+PGOFLAGS := -fprofile-use -fprofile-partial-training -fprofile-correction -Wno-missing-profile -Wno-coverage-mismatch
 endif
 endif
 OPT ?= -O3 -flto=4 -fno-semantic-interposition $(PGOFLAGS)
@@ -44,6 +44,11 @@ else
 BDIR := $(ROOT)/build/$(BTAG_BASE)$(if $(BTAG),-$(BTAG))
 endif
 include $(ROOT)/Makefile.common
+ifneq ($(PGO_FIXED)$(PGOFLAGS),)
+# (functions defined in headers are identified by the header's path too: -I relative to the repo root, like the objects)
+INCFLAGS := $(subst $(ROOT)/,,$(INCFLAGS))
+COREDEFINES := $(subst $(ROOT)/,,$(COREDEFINES))
+endif
 ifeq ($(HAVE_HDPACK),1)
   COREDEFINES += -DHAVE_HDPACK
 endif

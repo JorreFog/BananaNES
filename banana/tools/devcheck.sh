@@ -7,7 +7,7 @@ export NESRUN_AUTOPLAY=1
 dev() { ~/bananaos-0.4.3/dev.sh "$D" "$@"; }
 dev 'rm -rf /run/nescheck; mkdir -p /run/nescheck'
 put() { dev "cat > /run/nescheck/$2 && chmod +x /run/nescheck/$2" < "$1"; }
-put $H/build/nesrun-a64 nesrun
+put ${NESRUN_A64:-$HOME/banana-emu/bin/nesrun-a64} nesrun
 roms="$H/stressrom/out/stress-nes.nes $H/stressrom/out/irqtest-vrc3.nes $([ -z "$DEVCHECK_QUICK" ] && ls $H/banana/roms/*.nes 2>/dev/null)"
 for r in $roms; do put $r $(basename $r); done
 i=0; for c in "$@"; do put $c core$i.so; i=$((i+1)); done

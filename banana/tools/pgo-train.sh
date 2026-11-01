@@ -7,7 +7,7 @@ H=$(cd "$(dirname "$0")/../.." && pwd); D=$1; CORE=$2
 dev() { ~/bananaos-0.4.3/dev.sh "$D" "$@"; }
 dev 'rm -rf /run/pgotrain; mkdir -p /run/pgotrain/gcda'
 put() { dev "cat > /run/pgotrain/$2 && chmod +x /run/pgotrain/$2" < "$1"; }
-put $H/build/nesrun-a64 nesrun; put "$CORE" core.so
+put ${NESRUN_A64:-$HOME/banana-emu/bin/nesrun-a64} nesrun; put "$CORE" core.so
 for r in $H/stressrom/out/stress-nes.nes $(ls $H/banana/roms/*.nes); do put $r $(basename $r); done
 for r in stress-nes.nes nova-the-squirrel.nes thwaite.nes 240p-test-suite.nes; do
   n=6000; [ $r = stress-nes.nes ] && n=10800

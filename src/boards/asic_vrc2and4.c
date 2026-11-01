@@ -58,6 +58,7 @@ static SFORMAT VRC24_stateRegs[] = {
 
 static SFORMAT VRC2_stateRegs[] = {
 	{ &VRC2_pins, 1, "VC2E" },
+	{ 0 }	/* (the terminator was missing: the state writer ran on into whatever the linker put next, so the state of mapper 22 / VRC2 boards held other mappers' entries, differing between builds) */
 };
 
 static SFORMAT VRC4_stateRegs[] = {
