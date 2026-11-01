@@ -812,8 +812,47 @@ void FCEUI_DisableSpriteLimitation(int a) {
 }
 
 static uint8_t numsprites, SpriteBlurp;
+
+/* BananaNES: which of the 64 OAM entries lie on this scanline (bit i = entry i): the old loop tested all 64 on every
+ * line (15 000 compares a frame, nearly all misses).  Exactly the same test: 0 <= scanline - y < H. */
+#if defined(__ARM_NEON) && defined(__aarch64__)
+#include <arm_neon.h>
+static uint64_t spr_line_mask(int line, uint8_t H)
+{
+	uint64_t m = 0;
+	int c;
+	if ((unsigned)line > 255) goto slow;
+	{
+		static const uint8_t w[16] = { 1, 2, 4, 8, 16, 32, 64, 128, 1, 2, 4, 8, 16, 32, 64, 128 };
+		uint8x16_t wt = vld1q_u8(w), vl = vdupq_n_u8((uint8_t)line), vh = vdupq_n_u8(H);
+		for (c = 0; c < 4; c++) {
+			uint8x16x4_t q = vld4q_u8(SPRAM + c * 64);
+			uint8x16_t y = q.val[0];
+			uint8x16_t hit = vandq_u8(vcleq_u8(y, vl), vcltq_u8(vsubq_u8(vl, y), vh));
+			uint8x16_t t = vandq_u8(hit, wt);
+			m |= (uint64_t)(vaddv_u8(vget_low_u8(t)) | (vaddv_u8(vget_high_u8(t)) << 8)) << (c * 16);
+		}
+		return m;
+	}
+slow:
+	for (c = 0; c < 64; c++)
+		if ((uint32_t)(line - SPRAM[c << 2]) < H) m |= 1ull << c;
+	return m;
+}
+#else
+static uint64_t spr_line_mask(int line, uint8_t H)
+{
+	uint64_t m = 0;
+	int c;
+	for (c = 0; c < 64; c++)
+		if ((uint32_t)(line - SPRAM[c << 2]) < H) m |= 1ull << c;
+	return m;
+}
+#endif
+
 static void FetchSpriteData(void) {
 	uint8_t ns, sb;
+	uint64_t sm;
 	SPR *spr;
 	uint8_t H;
 	int n;
@@ -834,8 +873,9 @@ static void FetchSpriteData(void) {
 #endif
 
 	if (!PPU_hook)
-		for (n = 63; n >= 0; n--, spr++) {
-			if ((uint32_t)(scanline - spr->y) >= H) continue;
+		for (sm = spr_line_mask(scanline, H); sm; sm &= sm - 1) {
+			spr = (SPR*)SPRAM + __builtin_ctzll(sm);
+			n = 63 - __builtin_ctzll(sm);
 			if (ns < maxsprites) {
 				if (n == 63) sb = 1;
 
@@ -903,8 +943,9 @@ static void FetchSpriteData(void) {
 			}
 		}
 	else
-		for (n = 63; n >= 0; n--, spr++) {
-			if ((uint32_t)(scanline - spr->y) >= H) continue;
+		for (sm = spr_line_mask(scanline, H); sm; sm &= sm - 1) {
+			spr = (SPR*)SPRAM + __builtin_ctzll(sm);
+			n = 63 - __builtin_ctzll(sm);
 
 			if (ns < maxsprites) {
 				if (n == 63) sb = 1;
