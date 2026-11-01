@@ -401,6 +401,9 @@ void X6502_Power(void) {
 	X6502_Reset();
 }
 
+#ifdef BANANA_RUN_O2
+__attribute__((optimize("O2")))
+#endif
 void X6502_Run(int32_t cycles)
 {
 	#define WrRAM WrRAMFast

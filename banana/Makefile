@@ -41,6 +41,9 @@ TARGET := $(BDIR)/banananes_libretro.so
 all: $(TARGET)
 $(TARGET): $(OBJS)
 	$(CC) -o $@ $(OBJS) $(LDFLAGS) -lm
+ifneq ($(X6502_OPT),)
+$(BDIR)/x6502.o: CFLAGS += $(X6502_OPT)
+endif
 $(BDIR)/%.o: $(CORE_DIR)/%.c
 	@mkdir -p $(dir $@)
 	$(CC) -c -o $@ $< $(CFLAGS)
