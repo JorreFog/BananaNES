@@ -4,11 +4,11 @@
 # (made once from the unmodified upstream build). A change that alters any CRC is not exact: opt-in only, or dropped.
 export NESRUN_AUTOPLAY=1
 H=$(cd "$(dirname "$0")/../.." && pwd); core=$1; mode=${2:-check}
-roms="$H/stressrom/out/stress-nes-L1.nes $H/stressrom/out/stress-nes.nes $H/stressrom/out/stress-nes-L10.nes $(ls $H/banana/roms/*.nes 2>/dev/null)"
+roms="$H/stressrom/out/irqtest-vrc3.nes $H/stressrom/out/stress-nes-L1.nes $H/stressrom/out/stress-nes.nes $H/stressrom/out/stress-nes-L10.nes $(ls $H/banana/roms/*.nes 2>/dev/null)"
 refs=$H/banana/ref-crc.txt; rc=0; [ "$mode" = make-ref ] && : > $refs.new
 for r in $roms; do
   [ -f "$r" ] || continue
-  n=10800; case $r in */roms/*) n=7200;; esac
+  n=10800; case $r in */roms/*|*/irqtest*) n=7200;; esac
   out=$(~/banana-emu/bin/nesrun "$core" "$r" $n | tr ' ' '\n' | grep -E "^(video_crc|audio_crc|srm_crc|state_crc)=" | tr '\n' ' ')
   key="$(basename $r) $(md5sum < $r | cut -c1-8) $n"
   if [ "$mode" = make-ref ]; then echo "$key $out" >> $refs.new

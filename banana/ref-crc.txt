@@ -1,3 +1,4 @@
+irqtest-vrc3.nes 118f79f9 7200 video_crc=cb89dc7e audio_crc=253cfc97 srm_crc=00000000 state_crc=14bec17e 
 stress-nes-L1.nes 8ac1001c 10800 video_crc=b1d283a1 audio_crc=83d6974f srm_crc=f737a3ed state_crc=3c461412 
 stress-nes.nes db9dce77 10800 video_crc=9bb97d68 audio_crc=01e6b1fc srm_crc=e57f8f0e state_crc=6a3e50b1 
 stress-nes-L10.nes 922c74a1 10800 video_crc=fec0a1c1 audio_crc=fdf39c91 srm_crc=39e700a5 state_crc=fd3ec6f9 
