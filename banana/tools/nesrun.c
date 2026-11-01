@@ -64,7 +64,8 @@ static void input_poll(void) {}
 static int autoplay;
 static uint32_t auto_mask(long f) {
     /* scripted pad for homebrew without input files: Start taps early, then a deterministic walk/jump/shoot pattern */
-    static uint32_t lfsr = 0xACE1u, mask;
+    static uint32_t lfsr = 0, mask;
+    if (!lfsr) { const char *sd = getenv("NESRUN_SEED"); lfsr = sd ? (uint32_t)atol(sd) | 1u : 0xACE1u; }
     if (f >= 60 && f < 66) return 1u << 3;
     if (f >= 240 && f < 246) return 1u << 3;
     if (f >= 420 && f < 426) return (1u << 3) | (1u << 8);
