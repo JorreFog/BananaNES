@@ -9,7 +9,15 @@ GIT_VERSION ?= banana-$(shell git -C $(ROOT) rev-parse --short HEAD 2>/dev/null)
 HAVE_NTSC ?= 1
 HAVE_HDPACK ?= 1
 WANT_32BPP ?= 1
-OPT ?= -O3 -flto=4 -fno-semantic-interposition
+# PGO: banana/pgo holds the .gcda files of a training run on the handheld (banana/tools/pgo-train.sh); they are copied next to the
+# objects and used with the default flags (NO_PGO=1 turns it off; a source change makes the profile of the changed functions unused)
+PGO_DIR ?= $(ROOT)/banana/pgo
+ifeq ($(NO_PGO)$(HOST),)
+ifneq ($(wildcard $(PGO_DIR)/ppu.gcda),)
+PGOFLAGS := -fprofile-use -fprofile-correction -Wno-missing-profile -Wno-coverage-mismatch
+endif
+endif
+OPT ?= -O3 -flto=4 -fno-semantic-interposition $(PGOFLAGS)
 BANANA_DEFS ?=
 ifdef BUILDROOT
   # Buildroot package: CC/AR come from the package's command line, the toolchain wrapper already knows the sysroot
@@ -28,7 +36,13 @@ else
   ARCH_FLAGS ?= -mcpu=cortex-a55
   SYSFLAGS := --sysroot=$(A55_SYSROOT)
 endif
+ifneq ($(PGO_FIXED)$(PGOFLAGS),)
+# GCC's profile data identifies static functions by the object file's name: PGO builds (generate, train, use) always compile
+# from the repo root with the same relative paths (build/pgo/x.o from src/x.c), wherever the tree is
+BDIR := $(ROOT)/build/pgo
+else
 BDIR := $(ROOT)/build/$(BTAG_BASE)$(if $(BTAG),-$(BTAG))
+endif
 include $(ROOT)/Makefile.common
 ifeq ($(HAVE_HDPACK),1)
   COREDEFINES += -DHAVE_HDPACK
@@ -46,6 +60,11 @@ $(BDIR)/x6502.o: CFLAGS += $(X6502_OPT)
 endif
 $(BDIR)/%.o: $(CORE_DIR)/%.c
 	@mkdir -p $(dir $@)
+	@if [ -n "$(PGOFLAGS)" ] && [ -f $(PGO_DIR)/$*.gcda ]; then cp -f $(PGO_DIR)/$*.gcda $(BDIR)/$*.gcda; fi
+ifneq ($(PGO_FIXED)$(PGOFLAGS),)
+	cd $(ROOT) && $(CC) -c -o build/pgo/$*.o src/$*.c $(CFLAGS)
+else
 	$(CC) -c -o $@ $< $(CFLAGS)
+endif
 clean:
 	rm -rf $(BDIR)

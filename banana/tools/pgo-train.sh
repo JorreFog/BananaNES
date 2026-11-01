@@ -1,5 +1,6 @@
 #!/bin/bash
-# pgo-train.sh <plus|rgds> <pgo-core.so> : PGO training run on the handheld (aarch64): runs the -fprofile-generate core
+# pgo-train.sh <plus|rgds> <pgo-core.so> : (build the core with: make -C banana BOARD=rgds PGO_FIXED=1 NO_PGO=1 OPT="-O3 -flto=4 -fno-semantic-interposition -fprofile-generate -fprofile-update=single")
+# PGO training run on the handheld (aarch64): runs the -fprofile-generate core
 # on the stress ROM + homebrew through nesrun, brings the .gcda files back to where the objects were built.
 # Run under locked.sh (a few minutes of one core, no game may run).  Then rebuild the same BTAG with -fprofile-use.
 H=$(cd "$(dirname "$0")/../.." && pwd); D=$1; CORE=$2
@@ -12,5 +13,8 @@ for r in stress-nes.nes nova-the-squirrel.nes thwaite.nes 240p-test-suite.nes; d
   n=6000; [ $r = stress-nes.nes ] && n=10800
   dev "cd /run/pgotrain && GCOV_PREFIX=/run/pgotrain/gcda NESRUN_AUTOPLAY=1 ./nesrun ./core.so $r $n" | cut -c1-80
 done
-dev 'cd /run/pgotrain/gcda && tar -cf - .' | tar -C / -xf - && echo "gcda files: $(find /home -newer $CORE -name '*.gcda' 2>/dev/null | wc -l)"
+T=$(mktemp -d); dev 'cd /run/pgotrain/gcda && tar -cf - .' | tar -C $T -xf - 2>/dev/null
+d=$(find $T -type d -path '*build/pgo' | head -1)
+[ -n "$d" ] && { rm -rf "$H/banana/pgo"; mkdir -p "$H/banana/pgo"; cp -r "$d"/. "$H/banana/pgo/"; }
+echo "gcda files: $(find $H/banana/pgo -name '*.gcda' | wc -l) (banana/pgo)"; rm -rf $T
 dev 'rm -rf /run/pgotrain'
