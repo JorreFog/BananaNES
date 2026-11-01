@@ -22,6 +22,18 @@ if (X1 >= 2) {
 		HDNes_RecordBgGroup(X1 - 2, xoff);
 #endif
 
+#if defined(PPUT_PLAIN) && defined(BANANA_NEON_TILE)
+	{
+		/* 8 palette indexes straight from the two bit planes (vtst spreads the bits), the attribute from a per-(fine x,
+		 * attribute latch) table, the palette by one table lookup: replaces ppulut1/2/3 and the four pair-LUT loads */
+		uint8x8_t pl0 = vand_u8(vtst_u8(vdup_n_u8((uint8_t)(pshift[0] >> (8 - xoff))), bn_bitmask), vdup_n_u8(1));
+		uint8x8_t pl1 = vand_u8(vtst_u8(vdup_n_u8((uint8_t)(pshift[1] >> (8 - xoff))), bn_bitmask), vdup_n_u8(2));
+		uint8x8_t idx = vorr_u8(vorr_u8(pl0, pl1), vld1_u8(bn_attr[xoff | (atlatch << 3)]));
+		vst1_u8(P, vqtbl1_u8(bn_pal, idx));
+	}
+	P += 8;
+}
+#else
 	pixdata = ppulut1[(pshift[0] >> (8 - xoff)) & 0xFF] | ppulut2[(pshift[1] >> (8 - xoff)) & 0xFF];
 
 	pixdata |= ppulut3[xoff | (atlatch << 3)];
@@ -71,6 +83,7 @@ if (X1 >= 2) {
 	}
 	P += 8;
 }
+#endif
 
 #ifdef PPUT_MMC5SP
 	vadr = (MMC5HackExNTARAMPtr[xs | (ys << 5)] << 4) + (vofs & 7);

@@ -70,6 +70,11 @@ static uint32_t ppulut1[256];
 static uint32_t ppulut2[256];
 static uint32_t ppulut3[128];
 
+#if defined(BANANA_NEON_TILE) && defined(__ARM_NEON) && defined(__aarch64__)
+static const uint8_t bn_bitmask_v[8] = { 0x80, 0x40, 0x20, 0x10, 8, 4, 2, 1 };
+static uint8_t bn_attr[128][8];
+#define bn_bitmask vld1_u8(bn_bitmask_v)
+#endif
 static void makeppulut(void) {
 	int x;
 	int y;
@@ -86,6 +91,10 @@ static void makeppulut(void) {
 	for (cc = 0; cc < 16; cc++) {
 		for (xo = 0; xo < 8; xo++) {
 			ppulut3[xo | (cc << 3)] = 0;
+#if defined(BANANA_NEON_TILE) && defined(__ARM_NEON) && defined(__aarch64__)
+			for (pixel = 0; pixel < 8; pixel++)
+				bn_attr[xo | (cc << 3)][pixel] = (uint8_t)(((cc >> (((pixel + xo) / 8) * 2)) & 3) << 2);
+#endif
 			for (pixel = 0; pixel < 8; pixel++) {
 				int shiftr;
 				shiftr = (pixel + xo) / 8;
@@ -638,6 +647,9 @@ static void FASTAPASS(1) RefreshLine(int lastpixel) {
 			uint32_t pt_key = 0xFFFFFFFFu;
 			uint8_t *pt_C = NULL;
 			uint8_t pt_cc = 0;
+#if defined(BANANA_NEON_TILE) && defined(__ARM_NEON) && defined(__aarch64__)
+			uint8x16_t bn_pal = vld1q_u8(PALRAM);
+#endif
 			#define PPUT_PLAIN
 			for (X1 = firsttile; X1 < lasttile; X1++) {
 				#include "pputile.h"
