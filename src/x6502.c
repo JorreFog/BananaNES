@@ -401,6 +401,20 @@ void X6502_Power(void) {
 	X6502_Reset();
 }
 
+
+/* BananaNES: the part of "sync the run's locals out" that needs no local state beyond five numbers, out of line (it is
+ * expanded at ~1000 memory-access sites of X6502_Run: 250 KB of code) */
+#ifdef BANANA_OUTLINE_SYNC
+static __attribute__((noinline)) void cpu_sync_out(int32_t lcount, int32_t cb_sync, int32_t cb_cons, uint8_t ldb)
+{
+	int32_t lts = (cb_sync - lcount) / 48;
+	X.count = lcount;
+	X.tcount = (cb_cons - lcount) / 48;
+	X.DB = ldb;
+	timestamp += lts;
+	if (!overclocked) sound_timestamp += lts;
+}
+#endif
 #ifdef BANANA_RUN_O2
 __attribute__((optimize("O2")))
 #endif
@@ -458,6 +472,9 @@ void X6502_Run(int32_t cycles)
 	#define _PI rPI
 	#define _count lcount
 	#define ADDCYC(x) { lcount -= (x) * 48; }
+	#ifdef BANANA_OUTLINE_SYNC
+	#define SYNC_OUT() cpu_sync_out(lcount, cb_sync, cb_cons, ldb)
+	#else
 	#define SYNC_OUT() {								\
 		int32_t _lts = (cb_sync - lcount) / 48;			\
 		X.count = lcount;								\
@@ -466,6 +483,7 @@ void X6502_Run(int32_t cycles)
 		timestamp += _lts;								\
 		if (!overclocked) sound_timestamp += _lts;		\
 	}
+	#endif
 	#define SYNC_IN() { lcount = X.count; cb_sync = lcount; cb_cons = lcount + X.tcount * 48; cp_page = 0xFFFF; ldb = X.DB; lirq = X.IRQlow; lmap = MapIRQHook; lenc = encryptOpcodes; }
 	/* the APU hook only counts down between its events: apply what is owed before the APU registers are touched */
 	#define SND_OWED() { if (!lover) { int32_t _o = (snd_base - cb_cons) / 48; if (_o) FCEU_SoundCPUHook(_o); snd_base = cb_cons; } }
