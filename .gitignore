@@ -12,3 +12,4 @@ stressrom/dpcm.bin
 stressrom/data.inc
 stressrom/out/
 banana/roms/
+build/
