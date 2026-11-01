@@ -8,7 +8,7 @@ roms="$H/stressrom/out/irqtest-vrc3.nes $H/stressrom/out/stress-nes-L1.nes $H/st
 refs=$H/banana/ref-crc.txt; rc=0; [ "$mode" = make-ref ] && : > $refs.new
 for r in $roms; do
   [ -f "$r" ] || continue
-  n=10800; case $r in */roms/*|*/irqtest*) n=7200;; esac
+  n=14000; case $r in */roms/*|*/irqtest*) n=7200;; esac
   out=$(~/banana-emu/bin/nesrun "$core" "$r" $n | tr ' ' '\n' | grep -E "^(video_crc|audio_crc|srm_crc|state_crc)=" | tr '\n' ' ')
   key="$(basename $r) $(md5sum < $r | cut -c1-8) $n"
   if [ "$mode" = make-ref ]; then echo "$key $out" >> $refs.new
