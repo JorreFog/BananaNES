@@ -79,7 +79,7 @@ int main(int argc, char **argv) {
     if (argc < 4) { fprintf(stderr, "usage: nesrun core.so rom frames [-o crc] [-d out.ppm:N] [-v k=v] [-s sav]\n"); return 2; }
     fastmode = getenv("NESRUN_FAST") != NULL;
     autoplay = getenv("NESRUN_AUTOPLAY") != NULL;
-    long frames = atol(argv[3]); const char *sav = NULL, *ramout = NULL, *stout = NULL; (void)log_cb; crc_init();
+    long frames = atol(argv[3]); const char *sav = NULL, *ramout = NULL, *stout = NULL, *wstate = NULL, *lstate = NULL; long wstate_f = -1, lstate_f = -1; (void)log_cb; crc_init();
     for (int i = 4; i < argc; i++) {
         if (!strcmp(argv[i], "-o") && i + 1 < argc) fcrc = fopen(argv[++i], "w");
         else if (!strcmp(argv[i], "-d") && i + 1 < argc) { char *s = strdup(argv[++i]); char *c = strrchr(s, ':'); if (c) { *c = 0; dumpn = atoi(c + 1); } dumpf = s; }
@@ -87,6 +87,8 @@ int main(int argc, char **argv) {
         else if (!strcmp(argv[i], "-s") && i + 1 < argc) sav = argv[++i];
         else if (!strcmp(argv[i], "-r") && i + 1 < argc) ramout = argv[++i];
         else if (!strcmp(argv[i], "-t") && i + 1 < argc) stout = argv[++i];
+        else if (!strcmp(argv[i], "-w") && i + 1 < argc) { char *a = strdup(argv[++i]); char *c = strrchr(a, ':'); if (c) { *c = 0; wstate_f = atol(c + 1); } wstate = a; }
+        else if (!strcmp(argv[i], "-l") && i + 1 < argc) { char *a = strdup(argv[++i]); char *c = strrchr(a, ':'); if (c) { *c = 0; lstate_f = atol(c + 1); } lstate = a; }
     }
     #ifdef STATIC_CORE
     void *h = NULL;
@@ -100,7 +102,7 @@ int main(int argc, char **argv) {
 #endif
     SYM(retro_set_environment) SYM(retro_set_video_refresh) SYM(retro_set_audio_sample) SYM(retro_set_audio_sample_batch)
     SYM(retro_set_input_poll) SYM(retro_set_input_state) SYM(retro_init) SYM(retro_load_game) SYM(retro_run) SYM(retro_get_system_av_info)
-    SYM(retro_deinit) SYM(retro_get_memory_data) SYM(retro_get_memory_size) SYM(retro_serialize_size) SYM(retro_serialize) SYM(retro_unload_game)
+    SYM(retro_deinit) SYM(retro_unserialize) SYM(retro_get_memory_data) SYM(retro_get_memory_size) SYM(retro_serialize_size) SYM(retro_serialize) SYM(retro_unload_game)
     retro_set_environment_f(env); retro_init_f();
     retro_set_video_refresh_f(video); retro_set_audio_sample_f(audio_one); retro_set_audio_sample_batch_f(audio_batch);
     retro_set_input_poll_f(input_poll); retro_set_input_state_f(input_state);
@@ -112,7 +114,10 @@ int main(int argc, char **argv) {
     struct timespec t0, t1; clock_gettime(CLOCK_MONOTONIC, &t0);
     const char *tr = getenv("NESRUN_TRACE"); long tr0 = tr ? atol(tr) : -1;
     struct { int32_t tcount; uint16_t PC; uint8_t A, X, Y, S, P, mooPI, jammed; } *xs = h ? dlsym(h, "X") : NULL;
-    for (fno = 0; fno < frames; fno++) { retro_run_f(); if (tr0 >= 0 && fno >= tr0 && xs) { uint8_t *rm = retro_get_memory_data_f(RETRO_MEMORY_SYSTEM_RAM); printf("f%ld PC=%04x S=%02x ram0=%02x %02x %02x\n", fno, xs->PC, xs->S, rm[0], rm[1], rm[2]); } }
+    for (fno = 0; fno < frames; fno++) {
+        if (lstate && fno == lstate_f) { FILE *f = fopen(lstate, "rb"); size_t n = retro_serialize_size_f(); void *b = calloc(1, n); if (f && fread(b, 1, n, f) > 0 && retro_unserialize_f(b, n)) fprintf(stderr, "state loaded at %ld\n", fno); else fprintf(stderr, "state load FAILED\n"); if (f) fclose(f); free(b); }
+        if (wstate && fno == wstate_f) { size_t n = retro_serialize_size_f(); void *b = calloc(1, n); if (retro_serialize_f(b, n)) { FILE *f = fopen(wstate, "wb"); fwrite(b, 1, n, f); fclose(f); } free(b); }
+        retro_run_f(); if (tr0 >= 0 && fno >= tr0 && xs) { uint8_t *rm = retro_get_memory_data_f(RETRO_MEMORY_SYSTEM_RAM); printf("f%ld PC=%04x S=%02x ram0=%02x %02x %02x\n", fno, xs->PC, xs->S, rm[0], rm[1], rm[2]); } }
     clock_gettime(CLOCK_MONOTONIC, &t1);
     double sec = (t1.tv_sec - t0.tv_sec) + (t1.tv_nsec - t0.tv_nsec) / 1e9;
     uint8_t *ram = retro_get_memory_data_f(RETRO_MEMORY_SAVE_RAM); size_t rn = retro_get_memory_size_f(RETRO_MEMORY_SAVE_RAM);
