@@ -26,6 +26,7 @@
 #include "fceu.h"
 #include "sound.h"
 #include "cart.h"
+#include "ppu.h"
 #include "banana.h"
 
 X6502 X;
@@ -499,7 +500,9 @@ void X6502_Run(int32_t cycles)
 			_mv = Page[_ma >> 11][_ma];						\
 		else if (__builtin_expect(_mk == 1, 1))				\
 			_mv = RAM[_ma & 0x7FF];							\
-		else {												\
+		else if (__builtin_expect((_ma & 0xE007) == 0x2002, 0) && FCEU_PPUStatusFast(cb_sync - lcount, _ma, &_mv)) { \
+			/* PPU status polled in a loop: no handler round trip */	\
+		} else {											\
 			SYNC_OUT();										\
 			if (_ma - 0x4000u < 0x18u) SND_OWED();			\
 			BST_R(_ma);										\

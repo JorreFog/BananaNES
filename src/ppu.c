@@ -451,6 +451,28 @@ static void LineUpdateForRead(void) {
 	}
 }
 
+/* BananaNES: a $2002 read when the render flush is not needed (see above), done without the CPU core's whole memory-handler
+ * round trip: x6502.c asks first. extra48 = 48 x the cycles the core has run since it last stored `timestamp`. Returns 0 when the
+ * normal path must be taken. Same effects as A2002 (status, open-bus latch, write toggle, vblank flag cleared). */
+int FCEU_PPUStatusFast(int32_t extra48, uint32_t A, uint8_t *out) {
+	uint8_t ret;
+	if (PAL || (A & 0xE007) != 0x2002 || ARead[A] != A2002 || InputScanlineHook)
+		return 0;
+	if (Pline) {
+		unsigned t48 = timestamp * 48 - (unsigned)linestartts + (unsigned)extra48;
+		int l = (int)(t48 >> 4);
+		if (l >= 248 || (sphitx != 0x100 && !(PPU_status & 0x40)))
+			return 0;
+	}
+	ret = PPU_status;
+	ret |= PPUGenLatch & 0x1F;
+	vtoggle = 0;
+	PPU_status &= 0x7F;
+	PPUGenLatch = ret;
+	*out = ret;
+	return 1;
+}
+
 static int rendis = 0;
 
 void FCEUI_SetRenderDisable(int sprites, int bg) {
