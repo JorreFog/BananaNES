@@ -24,3 +24,10 @@ fingerprint.py (workload fingerprint of a ROM), pgo-train.sh. Stress ROM + its A
 
 ## Not done / ideas
 See ATTEMPTS.md (dropped: $2002 flush skip, not exact). Unoptimised: expansion audio, FDS, MMC5, PAL (upstream code).
+
+## Re-running every check (PC)
+`banana/tools/check-all.sh <core.so> [ref.so]`. The reference core is the unmodified upstream source built the same way:
+`git worktree add ~/ovn-nes-base 7a542da -- ` then copy banana/Makefile and src/banana.[ch] hooks are not needed: build upstream with its own
+`Makefile.libretro platform=unix WANT_32BPP=1` (XRGB8888, like BananaOS' package), or use ~/ovn-nes-base/build/host-base888 on this PC.
+Host core: `make -C banana HOST=1 BTAG=h OPT="-O2"`; aarch64: `make -C banana BOARD=rgds BTAG=x` (BOARD=rgds-plus for the Plus);
+PGO: `-fprofile-generate` build -> banana/tools/pgo-train.sh on the handheld -> banana/tools/pgo-build.sh.
