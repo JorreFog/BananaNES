@@ -22,3 +22,7 @@ Base = upstream libretro-fceumm 7a542da (BananaOS 0.5.0 pin): host 2.38 s.
 | 13 | emphasis row fill skipped while no game uses the emphasis bits | host neutral | kept (exact incl. irqtest with emphasis cycling) |
 | 14 | slow memory paths marked unlikely; X6502_Run is 250 KB of code (1000 call sites inlined): -Os / -O2 no-LTO variants and `-freorder-blocks-and-partition` measured on the device | see findings | |
 | 10 | $2002 reads flush the partial line only when a sprite-0 hit can appear (polling games did ~2600 RefreshLine calls a frame) | first try not exact (8 px of one line when rendering is enabled mid-line): cause found = RefreshLine's Fixit1 (vertical increment) runs after the first call reaching pixel 268, so the two pre-fetch tiles see a new fine Y depending on where flushes fell; a read at pixel >= 248 still flushes, earlier reads skip | kept (exact) |
+| 15 | X6502_Run with `-Os` (no LTO) to test the I-cache theory (250 KB function) | RG DS pinned 1416: 1.49 ms vs 1.33 (-O3 -flto) | dropped |
+| 16 | NEON tile renderer for the plain BG path (vtst bit spread + vqtbl1 palette lookup) | device: 1.33 -> 1.29 ms (-3 %), exact (CRC identical incl. crop / palette / NTSC options on the RG DS) | kept, default on aarch64 |
+| 17 | attribute / name-table page cached across tiles (plain BG path) | host neutral, exact | kept |
+| 18 | $2002 status polls answered inside X6502_Run (FCEU_PPUStatusFast: no SYNC_OUT/IN, no handler call) when no flush is due | exact on 136 community test ROMs + 7 own ROMs + 13 option sets; device number pending | kept |
