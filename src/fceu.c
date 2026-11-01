@@ -86,7 +86,7 @@ void FCEU_RdPlainUpdate(int p0, int p1)
 				readfunc want = (p * 0x800 + x) < 0x800 ? ARAML : ARAMH;
 				if (ARead[p * 0x800 + x] != want) { kind = 0; break; }
 			}
-		} else if (p >= 16) {
+		} else if (p >= 12) {
 			kind = 2;
 			for (x = 0; x < 0x800; x++)
 				if (ARead[p * 0x800 + x] != CartBR) { kind = 0; break; }
