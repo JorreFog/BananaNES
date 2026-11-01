@@ -85,7 +85,7 @@ run_one() {  # run_one <ra|bf> <round>
     echo "$rd $fe $r" | tr " " "\t" | tee -a "$OUT/results.tsv"
     dev 'echo QUIT > /run/banana/retroarch.cmd; sleep 3'
     dev "pidof $name >/dev/null && kill $pid; sleep 1"
-    [ $fe = bf ] && dev 'cat /run/bdev/bf/stats.txt' > "$OUT/bf-stats-$rd.txt" 2>/dev/null
+    dev 'cat /run/bdev/bf/stats.txt' > "$OUT/stats-$fe-$rd.txt" 2>/dev/null
     true
 }
 # banana-ui with the lease for run-bananafront (bind-mounted for the whole A/B: the RetroArch runs use it too)
