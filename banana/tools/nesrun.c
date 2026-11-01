@@ -37,8 +37,10 @@ static bool env(unsigned cmd, void *d) {
     default: return false;
     }
 }
+static int fastmode;
 static void video(const void *data, unsigned w, unsigned h, size_t pitch) {
     if (!data) return;
+    if (fastmode) { vframes++; return; }
     unsigned bpp = pf == RETRO_PIXEL_FORMAT_XRGB8888 ? 4 : 2;
     uint32_t c = 0;
     for (unsigned y = 0; y < h; y++) c = crc_upd(c, (const uint8_t *)data + y * pitch, w * bpp);
@@ -55,13 +57,27 @@ static void video(const void *data, unsigned w, unsigned h, size_t pitch) {
             fclose(f); }
     }
 }
-static size_t audio_batch(const int16_t *d, size_t n) { acrc = crc_upd(acrc, d, n * 4); asamples += n; return n; }
+static size_t audio_batch(const int16_t *d, size_t n) { if (fastmode) { asamples += n; return n; } acrc = crc_upd(acrc, d, n * 4); asamples += n; return n; }
 static void audio_one(int16_t l, int16_t r) { int16_t b[2] = { l, r }; audio_batch(b, 1); }
 static void input_poll(void) {}
-static int16_t input_state(unsigned p, unsigned d, unsigned i, unsigned id) { (void)p; (void)d; (void)i; (void)id; return 0; }
+static int autoplay;
+static uint32_t auto_mask(long f) {
+    /* scripted pad for homebrew without input files: Start taps early, then a deterministic walk/jump/shoot pattern */
+    static uint32_t lfsr = 0xACE1u, mask;
+    if (f >= 60 && f < 66) return 1u << 3;
+    if (f >= 240 && f < 246) return 1u << 3;
+    if (f >= 420 && f < 426) return (1u << 3) | (1u << 8);
+    if (f % 18 == 0) { lfsr = (lfsr >> 1) ^ (-(lfsr & 1u) & 0xB400u);
+        static const uint32_t pat[8] = { 1u << 7, (1u << 7) | (1u << 8), (1u << 7) | 1u, 1u << 6, 1u << 8, (1u << 7) | (1u << 8), 1u << 4, 0 };
+        mask = pat[lfsr & 7]; if (lfsr & 0x100) mask |= 1u; }
+    return mask;
+}
+static int16_t input_state(unsigned p, unsigned d, unsigned i, unsigned id) { (void)i; if (!autoplay || p != 0 || d != RETRO_DEVICE_JOYPAD) return 0; return (auto_mask(fno) >> id) & 1; }
 
 int main(int argc, char **argv) {
     if (argc < 4) { fprintf(stderr, "usage: nesrun core.so rom frames [-o crc] [-d out.ppm:N] [-v k=v] [-s sav]\n"); return 2; }
+    fastmode = getenv("NESRUN_FAST") != NULL;
+    autoplay = getenv("NESRUN_AUTOPLAY") != NULL;
     long frames = atol(argv[3]); const char *sav = NULL, *ramout = NULL, *stout = NULL; (void)log_cb; crc_init();
     for (int i = 4; i < argc; i++) {
         if (!strcmp(argv[i], "-o") && i + 1 < argc) fcrc = fopen(argv[++i], "w");

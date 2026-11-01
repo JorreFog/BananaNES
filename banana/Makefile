@@ -8,7 +8,7 @@ ROOT := $(abspath $(CURDIR)/..)
 HAVE_NTSC ?= 1
 HAVE_HDPACK ?= 1
 WANT_32BPP ?= 0
-OPT ?= -O2
+OPT ?= -O3 -flto=4 -fno-semantic-interposition
 BANANA_DEFS ?=
 ifdef HOST
   BTAG_BASE := host

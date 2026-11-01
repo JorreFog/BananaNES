@@ -10,3 +10,5 @@ stressrom/*.o
 stressrom/chr.bin
 stressrom/dpcm.bin
 stressrom/data.inc
+stressrom/out/
+banana/roms/

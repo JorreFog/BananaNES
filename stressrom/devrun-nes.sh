@@ -55,6 +55,8 @@ dev 'echo QUIT > /run/banana/retroarch.cmd; for i in $(seq 20); do pidof bananaf
 sleep 1
 dev 'cat /data/banana/logs/bananafront.log' > "$OUT/bananafront.log"
 dev 'cat /run/bdev/bf/stats.txt' > "$OUT/stats.txt" 2>/dev/null
+dev 'cat /run/bdev/bf/prof.txt' > "$OUT/prof.txt" 2>/dev/null
+dev 'cat /run/bdev/bf/nesstats.csv' > "$OUT/nesstats.csv" 2>/dev/null
 [ -n "${PIN_KHZ:-}" ] && dev 'while read c mn mx; do echo 408000 > $c/scaling_min_freq; echo $mx > $c/scaling_max_freq; echo $mn > $c/scaling_min_freq; done < /run/bdev/pin.sav; rm -f /run/bdev/pin.sav'
 $DS/deploy.sh "$DEV" undo
 [ $NEWROM = 1 ] && dev "rm -f '$DROM'"

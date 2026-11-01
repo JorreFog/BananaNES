@@ -77,6 +77,10 @@ void banana_prof_stop(void)
 	setitimer(ITIMER_PROF, &it, NULL);
 	f = fopen(prof_file, "w");
 	if (f) {
+		unsigned in = 0;
+		for (i = 0; i < prof_n; i++)
+			if (prof_pc[i] >= prof_base && prof_pc[i] < prof_base + (8u << 20)) in++;
+		fprintf(f, "# total %u core %u\n", prof_n, in);
 		for (i = 0; i < prof_n; i++)
 			if (prof_pc[i] >= prof_base && prof_pc[i] < prof_base + (8u << 20)) fprintf(f, "%lx\n", (unsigned long)(prof_pc[i] - prof_base));
 		fclose(f);

@@ -55,6 +55,45 @@ void (*GameInterface)(int h);
 void (*GameStateRestore)(int version);
 
 readfunc ARead[0x10000];
+
+/* BananaNES: per 2 KiB page, what the CPU may read inline: 1 = internal RAM (ARAML/ARAMH), 2 = plain cart
+ * (CartBR, Page[]). Kept current by SetReadHandler / FlushGenieRW; x6502.c reads through it without the indirect call. */
+uint8_t rdplain[32];
+uint8_t wrplain[4];
+static DECLFW(BRAML);
+static DECLFW(BRAMH);
+void FCEU_WrPlainUpdate(void)
+{
+	int p, x;
+	for (p = 0; p < 4; p++) {
+		wrplain[p] = 1;
+		for (x = 0; x < 0x800; x++) {
+			writefunc want = (p * 0x800 + x) < 0x800 ? BRAML : BRAMH;
+			if (BWrite[p * 0x800 + x] != want) { wrplain[p] = 0; break; }
+		}
+	}
+}
+static DECLFR(ARAML);
+static DECLFR(ARAMH);
+void FCEU_RdPlainUpdate(int p0, int p1)
+{
+	int p, x;
+	for (p = p0; p <= p1; p++) {
+		int kind = 0;
+		if (p < 4) {
+			kind = 1;
+			for (x = 0; x < 0x800; x++) {
+				readfunc want = (p * 0x800 + x) < 0x800 ? ARAML : ARAMH;
+				if (ARead[p * 0x800 + x] != want) { kind = 0; break; }
+			}
+		} else if (p >= 16) {
+			kind = 2;
+			for (x = 0; x < 0x800; x++)
+				if (ARead[p * 0x800 + x] != CartBR) { kind = 0; break; }
+		}
+		rdplain[p] = kind;
+	}
+}
 writefunc BWrite[0x10000];
 static readfunc *AReadG = NULL;
 static writefunc *BWriteG = NULL;
@@ -116,6 +155,7 @@ void FlushGenieRW(void)
       BWriteG = NULL;
    }
    RWWrap = 0;
+   FCEU_RdPlainUpdate(0, 31);
 }
 
 readfunc FASTAPASS(1) GetReadHandler(int32_t a)
@@ -144,6 +184,7 @@ void FASTAPASS(3) SetReadHandler(int32_t start, int32_t end, readfunc func)
 	else
 		for (x = end; x >= start; x--)
 			ARead[x] = func;
+	FCEU_RdPlainUpdate(start >> 11, end >> 11);
 }
 
 writefunc FASTAPASS(1) GetWriteHandler(int32_t a)
@@ -172,6 +213,8 @@ void FASTAPASS(3) SetWriteHandler(int32_t start, int32_t end, writefunc func)
 	else
 		for (x = end; x >= start; x--)
 			BWrite[x] = func;
+	if (start < 0x2000)
+		FCEU_WrPlainUpdate();
 }
 
 uint8_t RAM[0x800];

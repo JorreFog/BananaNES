@@ -3173,6 +3173,78 @@ static void FCEUD_Update(uint8_t *XBuf, int32_t *Buffer, int Count)
 {
 }
 
+
+#if defined(__ARM_NEON) && defined(__aarch64__) && !defined(PSP) && !defined(PS2)
+#include <arm_neon.h>
+/* BananaNES: NES pixels are palette indices 128..191 after DoLine (colour = retro_palette[128 + n]).  The whole row
+ * is turned into 16/32-bit pixels with table lookups (vqtbl4) on byte planes of that 64-entry window: 16 pixels per
+ * ~6 instructions.  A row with any index outside 128..191 (raw/odd modes) is done by the scalar loop. */
+static uint8_t neon_pal[4][64];
+static uint32_t neon_pal_src[64];
+static int neon_pal_ok;
+static void neon_pal_refresh(void)
+{
+   int i;
+   if (neon_pal_ok && !memcmp(neon_pal_src, retro_palette + 128, sizeof(neon_pal_src)))
+      return;
+   for (i = 0; i < 64; i++)
+   {
+      uint32_t c = retro_palette[128 + i];
+      neon_pal_src[i] = c;
+#ifdef FRONTEND_SUPPORTS_RGB565
+      neon_pal[0][i] = (uint8_t)c;
+      neon_pal[1][i] = (uint8_t)(c >> 8);
+#else
+      neon_pal[0][i] = (uint8_t)c;           /* B */
+      neon_pal[1][i] = (uint8_t)(c >> 8);    /* G */
+      neon_pal[2][i] = (uint8_t)(c >> 16);   /* R */
+#endif
+   }
+   neon_pal_ok = 1;
+}
+/* returns 1 when the row was converted */
+static int neon_blit_row(bpp_t *out, const uint8_t *gfx, unsigned width)
+{
+   uint8x16x4_t t0, t1;
+#ifndef FRONTEND_SUPPORTS_RGB565
+   uint8x16x4_t t2;
+#endif
+   uint8x16_t bad = vdupq_n_u8(0);
+   unsigned x;
+   if (width & 15)
+      return 0;
+   t0 = vld1q_u8_x4(neon_pal[0]);
+   t1 = vld1q_u8_x4(neon_pal[1]);
+#ifndef FRONTEND_SUPPORTS_RGB565
+   t2 = vld1q_u8_x4(neon_pal[2]);
+#endif
+   for (x = 0; x < width; x += 16)
+   {
+      uint8x16_t d = vsubq_u8(vld1q_u8(gfx + x), vdupq_n_u8(128));
+      bad = vmaxq_u8(bad, d);
+#ifdef FRONTEND_SUPPORTS_RGB565
+      {
+         uint8x16x2_t px;
+         px.val[0] = vqtbl4q_u8(t0, d);
+         px.val[1] = vqtbl4q_u8(t1, d);
+         vst2q_u8((uint8_t *)(out + x), px);
+      }
+#else
+      {
+         uint8x16x4_t px;
+         px.val[0] = vqtbl4q_u8(t0, d);
+         px.val[1] = vqtbl4q_u8(t1, d);
+         px.val[2] = vqtbl4q_u8(t2, d);
+         px.val[3] = vdupq_n_u8(0);
+         vst4q_u8((uint8_t *)(out + x), px);
+      }
+#endif
+   }
+   return vmaxvq_u8(bad) < 64;
+}
+#define HAVE_NEON_BLIT 1
+#endif
+
 static void retro_run_blit(uint8_t *gfx)
 {
    unsigned x, y;
@@ -3334,6 +3406,9 @@ static void retro_run_blit(uint8_t *gfx)
           * per pixel. NSF and use_raw_palette flags don't change mid-
           * frame either. */
          {
+#ifdef HAVE_NEON_BLIT
+            neon_pal_refresh();
+#endif
             const uint8_t *deemp_row = XDBuf + (gfx - XBuf);
             const bool is_nsf        = (GameInfo->type == GIT_NSF);
             const uint8_t pixel_mask = use_raw_palette ? 0x3F : 0xFF;
@@ -3351,9 +3426,16 @@ static void retro_run_blit(uint8_t *gfx)
                }
                else
                {
+#ifdef HAVE_NEON_BLIT
+                  if (!use_raw_palette && neon_blit_row(out_row, gfx, width))
+                     goto row_done;
+#endif
                   for (x = 0; x < width; x++)
                      out_row[x] = retro_palette[gfx[x] & pixel_mask];
                }
+#ifdef HAVE_NEON_BLIT
+row_done:
+#endif
                gfx       += 256;
                deemp_row += 256;
             }

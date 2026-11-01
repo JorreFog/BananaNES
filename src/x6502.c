@@ -25,6 +25,7 @@
 #include "x6502.h"
 #include "fceu.h"
 #include "sound.h"
+#include "cart.h"
 #include "banana.h"
 
 X6502 X;
@@ -75,7 +76,11 @@ static INLINE void bst_r(uint32_t A) {
 
 static INLINE uint8_t RdMemNorm(uint32_t A) {
 	BST_R(A);
-	return(_DB = ARead[A](A));
+	switch (rdplain[A >> 11]) {
+	case 1: return(_DB = RAM[A & 0x7FF]);
+	case 2: return(_DB = Page[A >> 11][A]);
+	default: return(_DB = ARead[A](A));
+	}
 }
 
 static INLINE void WrMemNorm(uint32_t A, uint8_t V) {
@@ -397,8 +402,6 @@ void X6502_Run(int32_t cycles)
 {
 	#define RdRAM RdRAMFast
 	#define WrRAM WrRAMFast
-	#define RdMem RdMemNorm
-	#define WrMem WrMemNorm
 
 	#if (defined(C80x86) && defined(__GNUC__))
 	/* Gives a nice little speed boost. */
@@ -407,10 +410,80 @@ void X6502_Run(int32_t cycles)
 	uint16_t pbackus;
 	#endif
 
-	pbackus = _PC;
+	/* BananaNES: the CPU registers and the cycle counters live in locals for the run (only state.c reads X.A..
+	 * and never during a run); they go back to X / timestamp / sound_timestamp before anything outside can see
+	 * them: a memory handler, a mapper IRQ hook, the APU hook, and the end of the run. */
+	uint8_t rA = X.A, rX = X.X, rY = X.Y, rS = X.S, rP = X.P, rPI = X.mooPI;
+	int32_t lcount = X.count, ltcount = X.tcount;
+	uint32_t lts = 0;
+	int32_t snd_acc = 0, snd_due = FCEU_SoundHookDue();
+
+	pbackus = X.PC;
 
 	#undef _PC
 	#define _PC pbackus
+	#undef _A
+	#undef _X
+	#undef _Y
+	#undef _S
+	#undef _P
+	#undef _PI
+	#undef _count
+	#undef _tcount
+	#undef ADDCYC
+	#define _A rA
+	#define _X rX
+	#define _Y rY
+	#define _S rS
+	#define _P rP
+	#define _PI rPI
+	#define _count lcount
+	#define _tcount ltcount
+	#define ADDCYC(x) {									\
+		int __x = x;									\
+		ltcount += __x;									\
+		lcount -= __x * 48;								\
+		lts += __x;										\
+	}
+	#define SYNC_OUT() {								\
+		X.count = lcount;								\
+		X.tcount = ltcount;								\
+		timestamp += lts;								\
+		if (!overclocked) sound_timestamp += lts;		\
+		lts = 0;										\
+	}
+	#define SYNC_IN() { lcount = X.count; ltcount = X.tcount; }
+	/* the APU hook only counts down between its events: apply what is owed before the APU registers are touched */
+	#define SND_OWED() { if (snd_acc) { FCEU_SoundCPUHook(snd_acc); snd_acc = 0; } }
+	#define RdMem(A_) ({										\
+		uint32_t _ma = (A_);								\
+		uint8_t _mv;										\
+		switch (rdplain[_ma >> 11]) {						\
+		case 1: _mv = RAM[_ma & 0x7FF]; break;				\
+		case 2: _mv = Page[_ma >> 11][_ma]; break;			\
+		default:											\
+			SYNC_OUT();										\
+			if (_ma - 0x4000u < 0x18u) SND_OWED();			\
+			BST_R(_ma);										\
+			_mv = ARead[_ma](_ma);							\
+			SYNC_IN();										\
+			if (_ma - 0x4000u < 0x18u) snd_due = FCEU_SoundHookDue();	\
+		}													\
+		_DB = _mv;											\
+		_mv; })
+	#define WrMem(A_, V_) {										\
+		uint32_t _wa = (A_);								\
+		uint8_t _wv = (V_);									\
+		if (_wa < 0x2000 && wrplain[_wa >> 11]) RAM[_wa & 0x7FF] = _wv;	\
+		else {												\
+			SYNC_OUT();										\
+			if (_wa - 0x4000u < 0x18u) SND_OWED();			\
+			BST_W(_wa);										\
+			BWrite[_wa](_wa, _wv);							\
+			SYNC_IN();										\
+			if (_wa - 0x4000u < 0x18u) snd_due = FCEU_SoundHookDue();	\
+		}													\
+	}
 
 	if (PAL)
 		cycles *= 15;	/* 15*4=60 */
@@ -461,6 +534,9 @@ void X6502_Run(int32_t cycles)
 			if (_count <= 0) {
 				_PI = _P;
 				X.PC = pbackus;
+				X.A = rA; X.X = rX; X.Y = rY; X.S = rS; X.P = rP; X.mooPI = rPI;
+				SYNC_OUT();
+				SND_OWED();
 				return;
 			}	/* Should increase accuracy without a
 				 * major speed hit.
@@ -475,26 +551,69 @@ void X6502_Run(int32_t cycles)
 
 		temp = _tcount;
 		_tcount = 0;
-		if (MapIRQHook) MapIRQHook(temp);
-		if (!overclocked)
-			FCEU_SoundCPUHook(temp);
-		X.PC = pbackus;
-		_PC++;
-		if (encryptOpcodes == 10) b1 = b1 &~0x36 | b1 >>1 &0x12 | b1 <<1 &0x24;
-		if (encryptOpcodes == 11) {
-			if (encryptOpcodesConfig &0x02) b1 = b1 &~0x30 | b1 >>1 &0x10 | b1 <<1 &0x20;
-			if (encryptOpcodesConfig &0x40) b1 = b1 &~0xC6 | b1 >>1 &0x42 | b1 <<1 &0x84;
+		if (__builtin_expect(MapIRQHook != 0, 0)) {
+			SYNC_OUT();
+			MapIRQHook(temp);
+			SYNC_IN();
 		}
-		if (encryptOpcodes == 12) b1 = b1 &~0xC6 | b1 >>1 &0x42 | b1 <<1 &0x84;
-		if (encryptOpcodes == 14) b1 = b1 &~0xC0 | b1 >>1 &0x40 | b1 <<1 &0x80;
+		if (!overclocked) {
+			snd_acc += temp;
+			if (snd_acc >= snd_due) {
+				SYNC_OUT();
+				FCEU_SoundCPUHook(snd_acc);
+				snd_acc = 0;
+				SYNC_IN();
+				snd_due = FCEU_SoundHookDue();
+			}
+		}
+		_PC++;
+		if (__builtin_expect(encryptOpcodes != 0, 0)) {
+			if (encryptOpcodes == 10) b1 = b1 &~0x36 | b1 >>1 &0x12 | b1 <<1 &0x24;
+			if (encryptOpcodes == 11) {
+				if (encryptOpcodesConfig &0x02) b1 = b1 &~0x30 | b1 >>1 &0x10 | b1 <<1 &0x20;
+				if (encryptOpcodesConfig &0x40) b1 = b1 &~0xC6 | b1 >>1 &0x42 | b1 <<1 &0x84;
+			}
+			if (encryptOpcodes == 12) b1 = b1 &~0xC6 | b1 >>1 &0x42 | b1 <<1 &0x84;
+			if (encryptOpcodes == 14) b1 = b1 &~0xC0 | b1 >>1 &0x40 | b1 <<1 &0x80;
+		}
 		switch (b1) {
 			#include "ops.h"
 		}
 	}
 
+	X.PC = pbackus;
+	X.A = rA; X.X = rX; X.Y = rY; X.S = rS; X.P = rP; X.mooPI = rPI;
+	SYNC_OUT();
+	SND_OWED();
+
 	#undef _PC
 	#define _PC X.PC
-	_PC = pbackus;
+	#undef _A
+	#undef _X
+	#undef _Y
+	#undef _S
+	#undef _P
+	#undef _PI
+	#undef _count
+	#undef _tcount
+	#undef ADDCYC
+	#undef RdMem
+	#undef WrMem
+	#define _A X.A
+	#define _X X.X
+	#define _Y X.Y
+	#define _S X.S
+	#define _P X.P
+	#define _PI X.mooPI
+	#define _count X.count
+	#define _tcount X.tcount
+	#define ADDCYC(x) {									\
+		int __x = x;									\
+		_tcount += __x;									\
+		_count -= __x * 48;								\
+		timestamp += __x;  \
+		if (!overclocked) sound_timestamp +=  __x; \
+	}
 	#undef RdRAM
 	#undef WrRAM
 }

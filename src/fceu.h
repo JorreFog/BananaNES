@@ -57,6 +57,9 @@ extern uint8_t MMC5HackSPPage;
 extern uint8_t RAM[0x800];
 
 extern readfunc ARead[0x10000];
+extern uint8_t rdplain[32];
+extern uint8_t wrplain[4];
+void FCEU_RdPlainUpdate(int p0, int p1);
 extern writefunc BWrite[0x10000];
 
 extern void (*GameInterface)(int h);

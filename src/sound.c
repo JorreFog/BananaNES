@@ -524,6 +524,17 @@ static INLINE void DMCDMA(void) {
 	}
 }
 
+/* BananaNES: how many CPU cycles may pass before FCEU_SoundCPUHook has anything to do (it only counts down until then),
+ * so x6502.c can call it once per event instead of once per instruction. 1 = every instruction (DMC DMA pending). */
+int FCEU_SoundHookDue(void) {
+	int d;
+	if (DMCSize && !DMCHaveDMA) return 1;
+	d = (fhcnt + 47) / 48;
+	if (d < 1) return 1;
+	if (DMCacc < d) d = DMCacc < 1 ? 1 : DMCacc;
+	return d;
+}
+
 void FASTAPASS(1) FCEU_SoundCPUHook(int cycles) {
 	fhcnt -= cycles * 48;
 	if (fhcnt <= 0) {
