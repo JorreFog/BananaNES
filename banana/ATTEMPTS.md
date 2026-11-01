@@ -16,5 +16,9 @@ Base = upstream libretro-fceumm 7a542da (BananaOS 0.5.0 pin): host 2.38 s.
 | 6 | LQ APU mixers add whole runs between channel events (per 16-tick bucket) | host 1.78 -> 1.52 s | kept |
 | 7 | sprite-on-line bit mask (NEON vld4 on aarch64) instead of scanning 64 OAM entries per line | host neutral; device pending | kept (exact) |
 | 8 | NEON palette -> RGB565/XRGB8888 row blit (vqtbl4), scalar fallback for odd rows | device pending | kept (exact) |
-| 9 | opcode-fetch code-page cache | host neutral; device pending | tentative |
+| 9 | opcode-fetch code-page cache (+ operand fetches) | host neutral / -3 %; device with 11-13 | kept |
+| 11 | DB, IRQ line, MapIRQHook, opcode-encryption flag as locals; single cycle counter (cb_sync / cb_cons / snd_base derived from it) | host neutral; device (c8 vs c7) | kept (exact) |
+| 12 | PPU tile pipeline (pshift/atlatch/XOffset) in locals during a span | host -2.5 % | kept |
+| 13 | emphasis row fill skipped while no game uses the emphasis bits | host neutral | kept (exact incl. irqtest with emphasis cycling) |
+| 14 | slow memory paths marked unlikely; X6502_Run is 250 KB of code (1000 call sites inlined): -Os / -O2 no-LTO variants and `-freorder-blocks-and-partition` measured on the device | see findings | |
 | 10 | $2002 reads flush the partial line only when a sprite-0 hit can appear (polling games did ~2600 RefreshLine calls a frame) | not exact: video CRC differs by 8 pixels of one line in the scene where rendering is switched on mid-line (stale BG pipeline) | dropped |
