@@ -471,8 +471,13 @@ static int spork = 0;
 
 /* lasttile is really "second to last tile." */
 static void FASTAPASS(1) RefreshLine(int lastpixel) {
-	static uint32_t pshift[2];
-	static uint32_t atlatch;
+	static uint32_t pshift_s[2];
+	static uint32_t atlatch_s;
+	/* BananaNES: the tile pipeline lives in locals for the span (the may_alias store of every 8 pixels made the compiler
+	 * reload and store these statics each tile: a store-to-load chain on the in-order A55); written back after the loops */
+	uint32_t pshift[2] = { pshift_s[0], pshift_s[1] };
+	uint32_t atlatch = atlatch_s;
+	const int xoff = XOffset;
 	uint32_t smorkus = RefreshAddr;
 
 	#define RefreshAddr smorkus
@@ -623,6 +628,10 @@ static void FASTAPASS(1) RefreshLine(int lastpixel) {
 
 #undef vofs
 #undef RefreshAddr
+
+	pshift_s[0] = pshift[0];
+	pshift_s[1] = pshift[1];
+	atlatch_s = atlatch;
 
 	/* Reverse changes made before. */
 	Pal[0] &= 63;

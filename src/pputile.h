@@ -19,12 +19,12 @@ if (X1 >= 2) {
 	 * 8-pixel group so HDNes_RecordLine can map screen pixels back to
 	 * the two overlapping tile fetches that produced them. */
 	if (hdnes_active)
-		HDNes_RecordBgGroup(X1 - 2, XOffset);
+		HDNes_RecordBgGroup(X1 - 2, xoff);
 #endif
 
-	pixdata = ppulut1[(pshift[0] >> (8 - XOffset)) & 0xFF] | ppulut2[(pshift[1] >> (8 - XOffset)) & 0xFF];
+	pixdata = ppulut1[(pshift[0] >> (8 - xoff)) & 0xFF] | ppulut2[(pshift[1] >> (8 - xoff)) & 0xFF];
 
-	pixdata |= ppulut3[XOffset | (atlatch << 3)];
+	pixdata |= ppulut3[xoff | (atlatch << 3)];
 
 	/* Per-tile palette gather: 8 nibbles of pixdata index PALRAM[0..15].
 	 * Equivalent scalar form is
