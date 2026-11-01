@@ -25,6 +25,9 @@
 #include        "fceu-types.h"
 #include        "x6502.h"
 #include        "banana.h"
+#if defined(__ARM_NEON) && defined(__aarch64__)
+#include <arm_neon.h>
+#endif
 #include        "fceu.h"
 #include        "ppu.h"
 #include        "nsf.h"
@@ -754,14 +757,21 @@ static void DoLine(void)
 	} else if (PPU[1] & 0xE0)
 		for (x = 63; x >= 0; x--)
 			*(uint32_t*)&target[x << 2] = (*(uint32_t*)&target[x << 2]) | 0x40404040;
-	else
+	else {
+#if defined(__ARM_NEON) && defined(__aarch64__)
+		/* BananaNES: the common case in 16-byte steps */
+		uint8x16_t m3f = vdupq_n_u8(0x3f), m80 = vdupq_n_u8(0x80);
+		for (x = 0; x < 256; x += 16)
+			vst1q_u8(target + x, vorrq_u8(vandq_u8(vld1q_u8(target + x), m3f), m80));
+#else
 		for (x = 63; x >= 0; x--)
 			*(uint32_t*)&target[x << 2] = ((*(uint32_t*)&target[x << 2]) & 0x3f3f3f3f) | 0x80808080;
+#endif
+	}
 
 	/* write the actual colour emphasis */
-	colour_emphasis = ((PPU[1] >> 5) << 24) | ((PPU[1] >> 5) << 16) | ((PPU[1] >> 5) << 8) | ((PPU[1] >> 5) << 0);
-	for (x = 63; x >= 0; x--)
-		*(uint32_t*)&dtarget[x << 2] = colour_emphasis;
+	(void)colour_emphasis;
+	memset(dtarget, PPU[1] >> 5, 256);
 
     sphitx = 0x100;
 
