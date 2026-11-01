@@ -116,7 +116,7 @@ int main(int argc, char **argv) {
     const char *tr = getenv("NESRUN_TRACE"); long tr0 = tr ? atol(tr) : -1;
     struct { int32_t tcount; uint16_t PC; uint8_t A, X, Y, S, P, mooPI, jammed; } *xs = h ? dlsym(h, "X") : NULL;
     for (fno = 0; fno < frames; fno++) {
-        if (lstate && fno == lstate_f) { FILE *f = fopen(lstate, "rb"); size_t n = retro_serialize_size_f(); void *b = calloc(1, n); if (f && fread(b, 1, n, f) > 0 && retro_unserialize_f(b, n)) fprintf(stderr, "state loaded at %ld\n", fno); else fprintf(stderr, "state load FAILED\n"); if (f) fclose(f); free(b); }
+        if (lstate && fno == lstate_f) { FILE *f = fopen(lstate, "rb"); size_t n = 0; void *b = NULL; if (f) { fseek(f, 0, SEEK_END); n = (size_t)ftell(f); fseek(f, 0, SEEK_SET); b = calloc(1, n ? n : 1); } /* (the whole file: a state written by another build can be longer than this core's own size) */ if (f && fread(b, 1, n, f) > 0 && retro_unserialize_f(b, n)) fprintf(stderr, "state loaded at %ld\n", fno); else fprintf(stderr, "state load FAILED\n"); if (f) fclose(f); free(b); }
         if (wstate && fno == wstate_f) { size_t n = retro_serialize_size_f(); void *b = calloc(1, n); if (retro_serialize_f(b, n)) { FILE *f = fopen(wstate, "wb"); fwrite(b, 1, n, f); fclose(f); } free(b); }
         retro_run_f(); if (tr0 >= 0 && fno >= tr0 && xs) { uint8_t *rm = retro_get_memory_data_f(RETRO_MEMORY_SYSTEM_RAM); printf("f%ld PC=%04x S=%02x ram0=%02x %02x %02x\n", fno, xs->PC, xs->S, rm[0], rm[1], rm[2]); } }
     clock_gettime(CLOCK_MONOTONIC, &t1);
