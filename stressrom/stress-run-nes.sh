@@ -21,7 +21,9 @@ dev "$D" "$GATE" >> "$OUT/meta.txt" || { echo "device busy" >&2; exit 75; }
 dev "$D" 'cat /etc/os-release; cat /data/banana/*.conf /data/bananads/bananads.conf 2>/dev/null' > "$OUT/device-config.txt"
 dev "$D" 'rm -rf /run/stress; mkdir -p /run/stress /data/roms/nes' && dev "$D" 'cat > /run/stress/collect.sh' < "$H/collect.sh" &&
   dev "$D" "cat > '/data/roms/nes/$B'" < "$ROM" || exit 1
-dev "$D" "${EMU_ENV:-true}
+dev "$D" "${EMU_ENV:-true}; killall banana-ui; sleep 7"
+sleep 3
+dev "$D" "true
   for t in \$(seq 40); do echo '/data/roms/nes/$B' > /run/banana/launch; for i in \$(seq 10); do [ -e /run/banana/game.pid ] && break 2; sleep 0.5; done; done
   [ -e /run/banana/game.pid ] || { echo 'game did not start'; exit 1; }
   sleep 2; G=\$(cat /run/banana/game.pid); P=
@@ -34,7 +36,7 @@ dev "$D" "${EMU_ENV:-true}
   cp /run/banana/*.log /run/stress/data/ 2>/dev/null; mkdir -p /run/stress/data/logs; cp /data/banana/logs/* /run/stress/data/logs/ 2>/dev/null
   for f in /data/bananads/bananads.log /run/banana/retroarch.log; do [ -f \$f ] && cp \$f /run/stress/data/; done
   ls /data/saves/*/'${B%.*}'.* /data/*/saves/'${B%.*}'.* 2>/dev/null | while read s; do cp \"\$s\" /run/stress/data/; done
-  rm -f '/data/roms/nes/$B'; true" | tee "$OUT/run.txt"
+  rm -f '/data/roms/nes/$B'; rmdir /data/roms/nes 2>/dev/null; true" | tee "$OUT/run.txt"
 dev "$D" 'tar -C /run/stress/data -cf - . && rm -rf /run/stress' | tar -C "$OUT" -xf -
 python3 -I "$H/summarize.py" "$OUT" > "$OUT/summary.md" && cat "$OUT/summary.md"
 echo "data: $OUT"

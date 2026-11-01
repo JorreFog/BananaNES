@@ -338,6 +338,7 @@ redundant) on the variable "x".
 #define ST_IX(r)        { uint32_t A; GetIX(A); WrMem(A, r); break; }
 #define ST_IY(r)        { uint32_t A; GetIYWR(A); WrMem(A, r); break; }
 
+static int32_t Cyc48[256];
 static const uint8_t CycTable[256] =
 {
 /*0x00*/ 7, 6, 2, 8, 3, 3, 5, 5, 3, 2, 2, 2, 4, 4, 6, 6,
@@ -383,6 +384,8 @@ void X6502_Init(void) {
 
 	memset((void*)&X, 0, sizeof(X));
 	for (x = 0; x < 256; x++)
+		Cyc48[x] = CycTable[x] * 48;
+	for (x = 0; x < 256; x++)
 		if (!x)
 			ZNTable[x] = Z_FLAG;
 		else if (x & 0x80)
@@ -413,9 +416,12 @@ void X6502_Run(int32_t cycles)
 	 * and never during a run); they go back to X / timestamp / sound_timestamp before anything outside can see
 	 * them: a memory handler, a mapper IRQ hook, the APU hook, and the end of the run. */
 	uint8_t rA = X.A, rX = X.X, rY = X.Y, rS = X.S, rP = X.P, rPI = X.mooPI;
-	int32_t lcount = X.count, ltcount = X.tcount;
-	uint32_t lts = 0;
-	int32_t snd_acc = 0, snd_due = FCEU_SoundHookDue();
+	/* cycle bookkeeping: only lcount (x48) moves per instruction; everything else is derived from it when needed:
+	 *   cb_sync: lcount at the last sync (the cycles since then advance timestamp / sound_timestamp)
+	 *   cb_cons: lcount at the last "consumption" point, X.tcount = (cb_cons - lcount) / 48 (the baseline's tcount)
+	 *   snd_base: lcount (consumption-aligned) at the last APU hook; the hook is due when lcount <= lsnd_lim */
+	int32_t lcount = X.count;
+	int32_t cb_sync, cb_cons, snd_base, snd_due = FCEU_SoundHookDue(), lsnd_lim;
 	/* per-instruction globals read from locals: they only change inside handlers/hooks (refreshed by SYNC_IN) */
 	uint8_t ldb = X.DB, lenc = encryptOpcodes;
 	uint32_t lirq = X.IRQlow;
@@ -437,7 +443,6 @@ void X6502_Run(int32_t cycles)
 	#undef _P
 	#undef _PI
 	#undef _count
-	#undef _tcount
 	#undef _DB
 	#undef ADDCYC
 	#define _DB ldb
@@ -449,24 +454,19 @@ void X6502_Run(int32_t cycles)
 	#define _P rP
 	#define _PI rPI
 	#define _count lcount
-	#define _tcount ltcount
-	#define ADDCYC(x) {									\
-		int __x = x;									\
-		ltcount += __x;									\
-		lcount -= __x * 48;								\
-		lts += __x;										\
-	}
+	#define ADDCYC(x) { lcount -= (x) * 48; }
 	#define SYNC_OUT() {								\
+		int32_t _lts = (cb_sync - lcount) / 48;			\
 		X.count = lcount;								\
-		X.tcount = ltcount;								\
+		X.tcount = (cb_cons - lcount) / 48;				\
 		X.DB = ldb;										\
-		timestamp += lts;								\
-		if (!overclocked) sound_timestamp += lts;		\
-		lts = 0;										\
+		timestamp += _lts;								\
+		if (!overclocked) sound_timestamp += _lts;		\
 	}
-	#define SYNC_IN() { lcount = X.count; ltcount = X.tcount; cp_page = 0xFFFF; ldb = X.DB; lirq = X.IRQlow; lmap = MapIRQHook; lenc = encryptOpcodes; }
+	#define SYNC_IN() { lcount = X.count; cb_sync = lcount; cb_cons = lcount + X.tcount * 48; cp_page = 0xFFFF; ldb = X.DB; lirq = X.IRQlow; lmap = MapIRQHook; lenc = encryptOpcodes; }
 	/* the APU hook only counts down between its events: apply what is owed before the APU registers are touched */
-	#define SND_OWED() { if (snd_acc) { FCEU_SoundCPUHook(snd_acc); snd_acc = 0; } }
+	#define SND_OWED() { if (!lover) { int32_t _o = (snd_base - cb_cons) / 48; if (_o) FCEU_SoundCPUHook(_o); snd_base = cb_cons; } }
+	#define SND_REFRESH() { snd_due = FCEU_SoundHookDue(); lsnd_lim = snd_base - 48 * snd_due; }
 	#define RdMem(A_) ({										\
 		uint32_t _ma = (A_);								\
 		uint8_t _mv;										\
@@ -479,7 +479,7 @@ void X6502_Run(int32_t cycles)
 			BST_R(_ma);										\
 			_mv = ARead[_ma](_ma);							\
 			SYNC_IN();										\
-			if (_ma - 0x4000u < 0x18u) snd_due = FCEU_SoundHookDue();	\
+			if (_ma - 0x4000u < 0x18u) SND_REFRESH();		\
 		}													\
 		_DB = _mv;											\
 		_mv; })
@@ -493,7 +493,7 @@ void X6502_Run(int32_t cycles)
 			BST_W(_wa);										\
 			BWrite[_wa](_wa, _wv);							\
 			SYNC_IN();										\
-			if (_wa - 0x4000u < 0x18u) snd_due = FCEU_SoundHookDue();	\
+			if (_wa - 0x4000u < 0x18u) SND_REFRESH();		\
 		}													\
 	}
 
@@ -503,9 +503,12 @@ void X6502_Run(int32_t cycles)
 		cycles *= 16;	/* 16*4=64 */
 
 	_count += cycles;
+	cb_sync = lcount;
+	cb_cons = lcount + X.tcount * 48;
+	snd_base = cb_cons;
+	lsnd_lim = snd_base - 48 * snd_due;
 
 	while (_count > 0) {
-		int32_t temp;
 		uint8_t b1;
 
 		if (lirq) {
@@ -569,24 +572,23 @@ void X6502_Run(int32_t cycles)
 			if (rdplain[_PC >> 11] == 2) { cp_page = _PC >> 11; cp_ptr = Page[cp_page]; }
 		}
 
-		ADDCYC(CycTable[b1]);
+		lcount -= Cyc48[b1];
 
-		temp = _tcount;
-		_tcount = 0;
 		if (__builtin_expect(lmap != 0, 0)) {
+			int32_t temp = (cb_cons - lcount) / 48;
+			cb_cons = lcount;
 			SYNC_OUT();
 			lmap(temp);
 			SYNC_IN();
-		}
-		if (!lover) {
-			snd_acc += temp;
-			if (snd_acc >= snd_due) {
-				SYNC_OUT();
-				FCEU_SoundCPUHook(snd_acc);
-				snd_acc = 0;
-				SYNC_IN();
-				snd_due = FCEU_SoundHookDue();
-			}
+		} else
+			cb_cons = lcount;
+		if (!lover && lcount <= lsnd_lim) {
+			int32_t o = (snd_base - cb_cons) / 48;
+			SYNC_OUT();
+			FCEU_SoundCPUHook(o);
+			SYNC_IN();
+			snd_base = cb_cons;
+			SND_REFRESH();
 		}
 		_PC++;
 		if (__builtin_expect(lenc != 0, 0)) {
@@ -617,7 +619,6 @@ void X6502_Run(int32_t cycles)
 	#undef _P
 	#undef _PI
 	#undef _count
-	#undef _tcount
 	#undef _DB
 	#undef RdRAM
 	#undef ADDCYC
