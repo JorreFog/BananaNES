@@ -9,9 +9,10 @@
 #ifdef BANANA_STATS
 struct banana_stats {
 	uint64_t insn, ppu_w[8], ppu_r2002, ppu_r2007, apu_w, mapper_w, sram_w, oamdma, dmc_bytes, irq, nmi,
-	         spr_lines, spr_over8_lines, spr_total, spr_max_line, scroll_w;
+	         spr_lines, spr_over8_lines, spr_total, spr_max_line, scroll_w, irq_line;
 };
 extern struct banana_stats bstat;
+extern int banana_scanline;
 #define BST(f) (bstat.f++)
 #define BSTN(f, n) (bstat.f += (n))
 void banana_stats_frame(void);

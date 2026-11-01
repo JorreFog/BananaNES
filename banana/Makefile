@@ -8,7 +8,7 @@ ROOT := $(abspath $(CURDIR)/..)
 GIT_VERSION ?= banana-$(shell git -C $(ROOT) rev-parse --short HEAD 2>/dev/null)
 HAVE_NTSC ?= 1
 HAVE_HDPACK ?= 1
-WANT_32BPP ?= 0
+WANT_32BPP ?= 1
 OPT ?= -O3 -flto=4 -fno-semantic-interposition
 BANANA_DEFS ?=
 ifdef BUILDROOT

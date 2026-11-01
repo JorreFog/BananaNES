@@ -277,5 +277,5 @@ with open('data.inc', 'w') as f:
     f.write(s("str_dialog", "THE VILLAGE IS QUIET TONIGHT. YOU SEE A LIGHT FROM THE OLD TOWER AND A PATH LEADING NORTH. WILL YOU GO? "))
     f.write(s("str_phase0", "TITLE"));    f.write(s("str_phase1", "PLATFORMER")); f.write(s("str_phase2", "PARALLAX"))
     f.write(s("str_phase3", "SHOOTER"));  f.write(s("str_phase4", "TOWN RPG"));    f.write(s("str_phase5", "FIGHTER DMC"))
-    f.write(s("str_phase6", "LOADS"))
+    f.write(s("str_phase6", "LOADS")); f.write(s("str_phase7", "SPLIT 2006"))
 print("gen ok; song rows", len(song), "dpcm used", len(dp))

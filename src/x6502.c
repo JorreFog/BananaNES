@@ -525,6 +525,9 @@ void X6502_Run(int32_t cycles)
 			} else {
 				if (!(_PI & I_FLAG) && !_jammed) {
 					BST(irq);
+#ifdef BANANA_STATS
+					bstat.irq_line = banana_scanline;
+#endif
 					ADDCYC(7);
 					PUSH(_PC >> 8);
 					PUSH(_PC);

@@ -700,6 +700,9 @@ void MMC5_hb(int);		/* Ugh ugh ugh. */
 static void DoLine(void)
 {
 	int x, colour_emphasis;
+#ifdef BANANA_STATS
+	banana_scanline = scanline;
+#endif
 	uint8_t *target = NULL;
 	uint8_t *dtarget = NULL;
 

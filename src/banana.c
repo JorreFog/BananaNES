@@ -6,6 +6,7 @@
 
 #ifdef BANANA_STATS
 struct banana_stats bstat;
+int banana_scanline;
 static FILE *sf;
 static unsigned long sframe;
 void banana_stats_frame(void)
@@ -15,13 +16,13 @@ void banana_stats_frame(void)
 		if (!p) { static int once; if (!once) once = 1; return; }
 		sf = fopen(p, "w");
 		if (!sf) return;
-		fprintf(sf, "frame insn ppu2000 ppu2001 ppu2002 ppu2003 ppu2004 ppu2005 ppu2006 ppu2007 r2002 r2007 apu_w mapper_w sram_w oamdma dmc_bytes irq nmi spr_total spr_max_line spr_over8_lines\n");
+		fprintf(sf, "frame insn ppu2000 ppu2001 ppu2002 ppu2003 ppu2004 ppu2005 ppu2006 ppu2007 r2002 r2007 apu_w mapper_w sram_w oamdma dmc_bytes irq nmi spr_total spr_max_line spr_over8_lines irq_line\n");
 	}
-	fprintf(sf, "%lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu\n", sframe++, (unsigned long)bstat.insn,
+	fprintf(sf, "%lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu\n", sframe++, (unsigned long)bstat.insn,
 	        (unsigned long)bstat.ppu_w[0], (unsigned long)bstat.ppu_w[1], (unsigned long)bstat.ppu_w[2], (unsigned long)bstat.ppu_w[3], (unsigned long)bstat.ppu_w[4],
 	        (unsigned long)bstat.ppu_w[5], (unsigned long)bstat.ppu_w[6], (unsigned long)bstat.ppu_w[7], (unsigned long)bstat.ppu_r2002, (unsigned long)bstat.ppu_r2007,
 	        (unsigned long)bstat.apu_w, (unsigned long)bstat.mapper_w, (unsigned long)bstat.sram_w, (unsigned long)bstat.oamdma, (unsigned long)bstat.dmc_bytes,
-	        (unsigned long)bstat.irq, (unsigned long)bstat.nmi, (unsigned long)bstat.spr_total, (unsigned long)bstat.spr_max_line, (unsigned long)bstat.spr_over8_lines);
+	        (unsigned long)bstat.irq, (unsigned long)bstat.nmi, (unsigned long)bstat.spr_total, (unsigned long)bstat.spr_max_line, (unsigned long)bstat.spr_over8_lines, (unsigned long)bstat.irq_line);
 	memset(&bstat, 0, sizeof bstat);
 }
 #endif

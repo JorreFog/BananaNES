@@ -26,7 +26,7 @@ M3_DIS = $E000
 M3_EN = $E001
 SRAM = $6000
 PHASE_FRAMES = 1500
-NPHASE = 7
+NPHASE = 8
 P3_BUL_END = .min(LEVEL + 3 + LEVEL * 5, 56 - 16)
 OAMBUF = $0200
 PROBE = $07E0
@@ -98,6 +98,9 @@ dmc_idx:    .res 1
 sub:        .res 1
 wave_amp:   .res 1
 txtpos:     .res 1
+irq_mode:   .res 1
+col_rows:   .res 1
+attr_end:   .res 1
 dbg:        .res 1
 
 .segment "OAM"
@@ -125,6 +128,7 @@ band_x:     .res 40
 band_ctrl:  .res 40
 band_chr:   .res 40
 band_len:   .res 40
+band_yl:    .res 40
 
 ; ======================================================================= CODE
 .segment "CODE"
@@ -354,7 +358,8 @@ nmi:
 @gfxdone:
   ; MMC3 IRQ splits for this frame
   lda nbands
-  beq @nogfx
+  cmp #2
+  bcc @nogfx
   lda #0
   sta irqidx
   sta M3_DIS
@@ -383,25 +388,55 @@ irq:
   txa
   pha
   sta M3_DIS            ; acknowledge
-  ldx irqidx
-  lda band_ctrl,x
+  ldx irqidx            ; IRQ i starts band i+1
+  lda irq_mode
+  beq @m1
+  ; the four-write mid-frame scroll ($2006 / $2005 / $2005 / $2006), as split-screen games do it: the band's first
+  ; line is row band_yl of the nametable
+  lda band_ctrl+1,x
+  and #1
+  asl
+  asl
+  sta PPUADDR
+  lda band_yl+1,x
+  sta PPUSCROLL
+  lda band_x+1,x
+  sta PPUSCROLL
+  lda band_yl+1,x
+  and #$38
+  asl
+  asl
+  sta t6
+  lda band_x+1,x
+  lsr
+  lsr
+  lsr
+  ora t6
+  sta PPUADDR
+  jmp @bank
+@m1:
+  lda band_ctrl+1,x
   ora #$88
   sta PPUCTRL
-  lda band_x,x
+  lda band_x+1,x
   sta PPUSCROLL
   lda #0
   sta PPUSCROLL
+@bank:
   lda bsel
   pha
   lda #0
   sta M3_SEL
-  lda band_chr,x
+  lda band_chr+1,x
   sta M3_DAT
   pla
   sta M3_SEL
   inx
   stx irqidx
-  cpx nbands
+  txa
+  clc
+  adc #1
+  cmp nbands
   bcs @done
   lda band_len,x
   sta M3_LATCH
@@ -704,14 +739,16 @@ queue_col:
   tax
   lda t0
   adc #0
-  ldy #26 | $80
+  lda col_rows
+  ora #$80
+  tay
   jsr vq_begin
   ldy #0
 : lda colbuf,y
   sta vbuf,x
   inx
   iny
-  cpy #26
+  cpy col_rows
   bcc :-
   jsr vq_end
   ; attributes every 4th column: 8 bytes at $23C0 + (col&31)/4 + row*8
@@ -767,7 +804,7 @@ queue_col:
   inx
   stx vlen
   iny
-  cpy #8
+  cpy attr_end
   bcc @attr
   lda #0
   ldx vlen
@@ -1580,8 +1617,8 @@ phase_update:
   sta ptr2+1
   jmp (ptr2)
 
-ph_init:  .word p0_init, p1_init, p2_init, p3_init, p4_init, p5_init, p6_init
-ph_upd:   .word p0_upd, p1_upd, p2_upd, p3_upd, p4_upd, p5_upd, p6_upd
+ph_init:  .word p0_init, p1_init, p2_init, p3_init, p4_init, p5_init, p6_init, p7_init
+ph_upd:   .word p0_upd, p1_upd, p2_upd, p3_upd, p4_upd, p5_upd, p6_upd, p7_upd
 
 ; phase_init: rendering off during the setup (a scene load), then back on
 phase_init:
@@ -1595,7 +1632,12 @@ phase_init:
   sta scx+1
   sta scy
   sta nent
+  sta irq_mode
   sta APU_STATUS
+  lda #26
+  sta col_rows
+  lda #8
+  sta attr_end
   lda #<PHASE_FRAMES
   sta ptimer
   lda #>PHASE_FRAMES
@@ -2221,6 +2263,7 @@ p2_init:
   stx nent
   rts
 ptnt: .byte $20, $24
+para_yl: .byte 0, 48, 88, 128, 168, 208
 atpal: .byte $00, $00, $55, $55, $AA, $AA, $FF, $FF
 
 p2_upd:
@@ -2230,6 +2273,8 @@ p2_upd:
   sta cam
   sta cam+1
   jsr update_ents_wrap
+  lda irq_mode
+  bne @normal
   lda ptimer+1
   cmp #>750
   bcc @wavy
@@ -2265,6 +2310,8 @@ p2_upd:
   sta band_chr,x
   lda para_len,x
   sta band_len,x
+  lda para_yl,x
+  sta band_yl,x
   inx
   cpx #6
   bcc @b
@@ -2347,6 +2394,19 @@ update_ents_wrap:
   jmp @l
 @d:
   rts
+
+; ===========================================================  PHASE 7: SPLIT SCROLL WITH $2006 (the parallax bands, the four-write scroll trick)
+p7_init:
+  jsr p2_init
+  lda #1
+  sta irq_mode
+  lda #$0F
+  sta snd_mask
+  lda #224
+  sta snd_row
+  rts
+p7_upd:
+  jmp p2_upd
 
 ; ===========================================================  PHASE 3: SHOOTER (Gradius / R-Type pattern): 64 sprites, 8 per line overflow, bursts
 p3_init:
@@ -2585,6 +2645,10 @@ burst:
 
 ; ===========================================================  PHASE 4: TOWN RPG (Dragon Quest / Zelda 2 pattern): slow scroll, NPCs, text box + IRQ split
 p4_init:
+  lda #20
+  sta col_rows           ; the text window (rows 24..29 of nametable 0) is not streamed over
+  lda #6
+  sta attr_end
   lda #$20
   sta ppuctrl_b
   lda #<pal_rpg
@@ -2699,13 +2763,13 @@ p4_upd:
   lda #190
   sta band_len
   lda #0
-  sta band_x
+  sta band_x+1
   lda ppuctrl_b
   ora #$88
-  sta band_ctrl
+  sta band_ctrl+1
   lda chr_r
-  sta band_chr
-  lda #1
+  sta band_chr+1
+  lda #2
   sta nbands
   ; typed text, one character per 4 frames
   lda frame
