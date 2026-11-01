@@ -6,7 +6,7 @@ Build: `./build.sh [LEVEL]` -> `out/stress-nes.nes` (LEVEL 5 = realistic default
 sprite pressure) + `out/stress-nes.phases.tsv`.
 
 NTSC, no input needed (attract loop), deterministic (fixed seed). One logic tick per vblank (NMI); the lag counter
-(frames the logic overran) is recorded. 7 scenes x 1500 frames (~25 s each), loop ~175 s. The 6502 folds scroll, PRNG,
+(frames the logic overran) is recorded. 8 scenes x 1500 frames (~25 s each), loop ~200 s. The 6502 folds scroll, PRNG,
 sprite counts, sprite-0 hit timing and entity positions into a 16-bit hash; at each scene end it writes
 `hash, frame, lag, sprite-0 wait, sprites` to PRG-RAM `$6008 + scene*8` (signature `BSTRES` at `$6000`), saved as
 the .srm on quit. Build-vs-build exactness = identical .srm + identical video/audio CRCs from `nesrun`.
@@ -19,6 +19,7 @@ the .srm on quit. Build-vs-build exactness = identical .srm + identical video/au
 | 3 | shooter | Gradius, R-Type, Life Force | up to 57-64 sprites, >8 per line, rotating OAM start (flicker), 2 px/frame scroll, explosion bursts (16 particles) + noise + DMC crash |
 | 4 | town-rpg | Dragon Quest, Zelda II, Final Fantasy | slow scroll, 14 NPCs, text box typed 1 char / 4 frames, IRQ split to a fixed window, day/night palette |
 | 5 | fighter-dmc | Double Dragon, digitised drums (Battletoads-style) | DMC sample DMA every beat, $4011 direct loads, $4015 polling, 8 PRG bank swaps/frame, sprite CHR banks as animation, screen shake |
+| 7 | split-2006 | Kirby/SMB3-style split screens done with the four-write $2006/$2005 scroll trick | the same 6 IRQ bands as scene 2 but every band start rewrites the PPU address ($2006 x2 + $2005 x2): mid-frame address-register path of the PPU |
 | 6 | loads | scene changes / fades in any game | rendering off, bulk nametable upload (2 KiB), code copied to PRG-RAM and executed from $6100, SRAM writes, 4-step palette fade |
 
 Evidence per scene and calibration against fingerprints: see CALIBRATION.md.

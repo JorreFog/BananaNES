@@ -35,6 +35,7 @@ Reading it:
 | shooter | Gradius/R-Type sprite pressure | 57 sprites, overflow lines; Thwaite's sprite counts are lower (max 8/line, 412/frame) | synthetic (documented 64/8 limits) |
 | town-rpg | text boxes + IRQ window | Nova text scenes ($2007 741 p95) are heavier than this scene | partly validated (lighter) |
 | fighter-dmc | digitised drums | DMC bytes/frame 24 p95 (a looping sample = 8-16 bytes/frame at rate $0F...$0C), $4011 direct loads | synthetic |
+| split-2006 | split screens via $2006 | MMC3 IRQ + $2006 trick = what SMB3/Kirby-class games do for status bars and split scroll; none of the homebrew uses it | synthetic |
 | loads | scene transitions | $2007 up to 2296 in a frame vs Nova 3181 / Thwaite 3534 / 240p 3095 | validated (same order) |
 
 Exactness gate: `banana/tools/check.sh core.so` (video + audio + save-RAM + state CRC on the three stress levels and the
