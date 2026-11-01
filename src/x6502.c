@@ -400,7 +400,6 @@ void X6502_Power(void) {
 
 void X6502_Run(int32_t cycles)
 {
-	#define RdRAM RdRAMFast
 	#define WrRAM WrRAMFast
 
 	#if (defined(C80x86) && defined(__GNUC__))
@@ -417,6 +416,11 @@ void X6502_Run(int32_t cycles)
 	int32_t lcount = X.count, ltcount = X.tcount;
 	uint32_t lts = 0;
 	int32_t snd_acc = 0, snd_due = FCEU_SoundHookDue();
+	/* per-instruction globals read from locals: they only change inside handlers/hooks (refreshed by SYNC_IN) */
+	uint8_t ldb = X.DB, lenc = encryptOpcodes;
+	uint32_t lirq = X.IRQlow;
+	void FP_FASTAPASS(1) (*lmap)(int) = MapIRQHook;
+	const int lover = overclocked;
 	/* the code page the PC is in (plain cart ROM): the opcode fetch skips the page-type lookup; dropped whenever a
 	 * handler ran (a mapper write may have switched banks) */
 	uint32_t cp_page = 0xFFFF;
@@ -434,7 +438,10 @@ void X6502_Run(int32_t cycles)
 	#undef _PI
 	#undef _count
 	#undef _tcount
+	#undef _DB
 	#undef ADDCYC
+	#define _DB ldb
+	#define RdRAM(A_) (ldb = RAM[(A_)])
 	#define _A rA
 	#define _X rX
 	#define _Y rY
@@ -452,11 +459,12 @@ void X6502_Run(int32_t cycles)
 	#define SYNC_OUT() {								\
 		X.count = lcount;								\
 		X.tcount = ltcount;								\
+		X.DB = ldb;										\
 		timestamp += lts;								\
 		if (!overclocked) sound_timestamp += lts;		\
 		lts = 0;										\
 	}
-	#define SYNC_IN() { lcount = X.count; ltcount = X.tcount; cp_page = 0xFFFF; }
+	#define SYNC_IN() { lcount = X.count; ltcount = X.tcount; cp_page = 0xFFFF; ldb = X.DB; lirq = X.IRQlow; lmap = MapIRQHook; lenc = encryptOpcodes; }
 	/* the APU hook only counts down between its events: apply what is owed before the APU registers are touched */
 	#define SND_OWED() { if (snd_acc) { FCEU_SoundCPUHook(snd_acc); snd_acc = 0; } }
 	#define RdMem(A_) ({										\
@@ -500,7 +508,7 @@ void X6502_Run(int32_t cycles)
 		int32_t temp;
 		uint8_t b1;
 
-		if (_IRQlow) {
+		if (lirq) {
 			if (_IRQlow & FCEU_IQRESET) {
 				_PC = RdMem(0xFFFC);
 				_PC |= RdMem(0xFFFD) << 8;
@@ -538,6 +546,7 @@ void X6502_Run(int32_t cycles)
 				}
 			}
 			_IRQlow &= ~(FCEU_IQTEMP);
+			lirq = X.IRQlow;
 			if (_count <= 0) {
 				_PI = _P;
 				X.PC = pbackus;
@@ -564,12 +573,12 @@ void X6502_Run(int32_t cycles)
 
 		temp = _tcount;
 		_tcount = 0;
-		if (__builtin_expect(MapIRQHook != 0, 0)) {
+		if (__builtin_expect(lmap != 0, 0)) {
 			SYNC_OUT();
-			MapIRQHook(temp);
+			lmap(temp);
 			SYNC_IN();
 		}
-		if (!overclocked) {
+		if (!lover) {
 			snd_acc += temp;
 			if (snd_acc >= snd_due) {
 				SYNC_OUT();
@@ -580,7 +589,7 @@ void X6502_Run(int32_t cycles)
 			}
 		}
 		_PC++;
-		if (__builtin_expect(encryptOpcodes != 0, 0)) {
+		if (__builtin_expect(lenc != 0, 0)) {
 			if (encryptOpcodes == 10) b1 = b1 &~0x36 | b1 >>1 &0x12 | b1 <<1 &0x24;
 			if (encryptOpcodes == 11) {
 				if (encryptOpcodesConfig &0x02) b1 = b1 &~0x30 | b1 >>1 &0x10 | b1 <<1 &0x20;
@@ -609,9 +618,12 @@ void X6502_Run(int32_t cycles)
 	#undef _PI
 	#undef _count
 	#undef _tcount
+	#undef _DB
+	#undef RdRAM
 	#undef ADDCYC
 	#undef RdMem
 	#undef WrMem
+	#define _DB X.DB
 	#define _A X.A
 	#define _X X.X
 	#define _Y X.Y
@@ -627,6 +639,5 @@ void X6502_Run(int32_t cycles)
 		timestamp += __x;  \
 		if (!overclocked) sound_timestamp +=  __x; \
 	}
-	#undef RdRAM
 	#undef WrRAM
 }
