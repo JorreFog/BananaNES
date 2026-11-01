@@ -14,7 +14,7 @@ WANT_32BPP ?= 1
 PGO_DIR ?= $(ROOT)/banana/pgo
 ifeq ($(NO_PGO)$(HOST),)
 ifneq ($(wildcard $(PGO_DIR)/ppu.gcda),)
-PGOFLAGS := -fprofile-use -fprofile-partial-training -fprofile-correction -Wno-missing-profile -Wno-coverage-mismatch
+PGOFLAGS := -fprofile-use -fprofile-correction -Wno-missing-profile -Wno-coverage-mismatch
 endif
 endif
 OPT ?= -O3 -flto=4 -fno-semantic-interposition $(PGOFLAGS)
