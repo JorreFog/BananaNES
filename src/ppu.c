@@ -635,9 +635,14 @@ static void FASTAPASS(1) RefreshLine(int lastpixel) {
 			}
 			#undef PPU_BGFETCH
 		} else {
+			uint32_t pt_key = 0xFFFFFFFFu;
+			uint8_t *pt_C = NULL;
+			uint8_t pt_cc = 0;
+			#define PPUT_PLAIN
 			for (X1 = firsttile; X1 < lasttile; X1++) {
 				#include "pputile.h"
 			}
+			#undef PPUT_PLAIN
 		}
 	}
 

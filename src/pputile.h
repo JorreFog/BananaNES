@@ -75,9 +75,23 @@ if (X1 >= 2) {
 #ifdef PPUT_MMC5SP
 	vadr = (MMC5HackExNTARAMPtr[xs | (ys << 5)] << 4) + (vofs & 7);
 #else
+#ifdef PPUT_PLAIN
+	/* BananaNES: the name-table page and the attribute depend on (coarse X bits 1-4, coarse Y bits 1-4, nametable): they
+	 * change every second tile at most, and not at all while the VRAM is not written (a write flushes the line first) */
+	if ((RefreshAddr & 0xFDE) != pt_key) {
+		pt_key = RefreshAddr & 0xFDE;
+		zz = RefreshAddr & 0x1F;
+		pt_C = vnapage[(RefreshAddr >> 10) & 3];
+		pt_cc = pt_C[0x3c0 + (zz >> 2) + ((RefreshAddr & 0x380) >> 4)];
+		pt_cc = ((pt_cc >> ((zz & 2) + ((RefreshAddr & 0x40) >> 4))) & 3);
+	}
+	C = pt_C;
+	vadr = (C[RefreshAddr & 0x3ff] << 4) + vofs;
+#else
 	zz = RefreshAddr & 0x1F;
 	C = vnapage[(RefreshAddr >> 10) & 3];
 	vadr = (C[RefreshAddr & 0x3ff] << 4) + vofs;	/* Fetch name table byte. */
+#endif
 #endif
 
 #ifdef PPUT_HOOK
@@ -91,8 +105,12 @@ if (X1 >= 2) {
 	#ifdef PPUT_MMC5CHR1
 		cc = (MMC5HackExNTARAMPtr[RefreshAddr & 0x3ff] & 0xC0) >> 6;
 	#else
+	#ifdef PPUT_PLAIN
+		cc = pt_cc;
+	#else
 		cc = C[0x3c0 + (zz >> 2) + ((RefreshAddr & 0x380) >> 4)];	/* Fetch attribute table byte. */
 		cc = ((cc >> ((zz & 2) + ((RefreshAddr & 0x40) >> 4))) & 3);
+	#endif
 	#endif
 #endif
 
