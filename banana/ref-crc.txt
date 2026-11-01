@@ -1,6 +1,6 @@
-stress-nes-L1.nes cbae2079 10800 video_crc=eef93561 audio_crc=9a34801c srm_crc=69424442 state_crc=a58931bf 
-stress-nes.nes cc8e466a 10800 video_crc=143d5730 audio_crc=6dbb3718 srm_crc=df303d10 state_crc=6f701650 
-stress-nes-L10.nes 6fde3943 10800 video_crc=3417a13a audio_crc=c5813788 srm_crc=b769edd9 state_crc=979d3fad 
+stress-nes-L1.nes 6c3f6461 10800 video_crc=4e73cf34 audio_crc=6880c6d0 srm_crc=c15e0e33 state_crc=b399fadb 
+stress-nes.nes 0579ad68 10800 video_crc=dc542d79 audio_crc=8c9cf206 srm_crc=4537d6df state_crc=703fcb13 
+stress-nes-L10.nes c4a797d9 10800 video_crc=673fe30a audio_crc=09c70016 srm_crc=ddea1877 state_crc=c6a85561 
 240p-test-suite.nes 06b44b6c 7200 video_crc=323470ee audio_crc=10287946 srm_crc=00000000 state_crc=966ab8d0 
 nova-the-squirrel.nes ecc08609 7200 video_crc=bec04412 audio_crc=464d7c29 srm_crc=12523924 state_crc=890f8649 
 thwaite.nes 60c2367d 7200 video_crc=b45a147f audio_crc=b22f0bb4 srm_crc=00000000 state_crc=3835a1d9 

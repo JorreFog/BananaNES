@@ -32,8 +32,9 @@ static bool env(unsigned cmd, void *d) {
     case RETRO_ENVIRONMENT_GET_LOG_INTERFACE: ((struct retro_log_callback *)d)->log = (retro_log_printf_t)vlog; return true;
     case RETRO_ENVIRONMENT_GET_CORE_OPTIONS_VERSION: *(unsigned *)d = 0; return true;
     case RETRO_ENVIRONMENT_SET_VARIABLES: case RETRO_ENVIRONMENT_SET_INPUT_DESCRIPTORS: case RETRO_ENVIRONMENT_SET_CONTROLLER_INFO:
-    case RETRO_ENVIRONMENT_SET_SUBSYSTEM_INFO: case RETRO_ENVIRONMENT_SET_MEMORY_MAPS: case RETRO_ENVIRONMENT_SET_SERIALIZATION_QUIRKS:
+    case RETRO_ENVIRONMENT_SET_SUBSYSTEM_INFO: case RETRO_ENVIRONMENT_SET_SERIALIZATION_QUIRKS:
     case RETRO_ENVIRONMENT_SET_SUPPORT_ACHIEVEMENTS: case RETRO_ENVIRONMENT_SET_MINIMUM_AUDIO_LATENCY: return true;
+    case RETRO_ENVIRONMENT_SET_MEMORY_MAPS: if (getenv("NESRUN_MAPS")) { const struct retro_memory_map *m = d; for (unsigned i = 0; i < m->num_descriptors; i++) { const struct retro_memory_descriptor *e = &m->descriptors[i]; printf("map %-7s start %05zx len %05zx flags %x\n", e->addrspace ? e->addrspace : "cpu", e->start, e->len, e->flags); } } return true;
     default: return false;
     }
 }

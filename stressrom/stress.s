@@ -29,6 +29,7 @@ PHASE_FRAMES = 1500
 NPHASE = 7
 P3_BUL_END = .min(LEVEL + 3 + LEVEL * 5, 56 - 16)
 OAMBUF = $0200
+PROBE = $07E0
 
 .segment "HEADER"
   .byte "NES", $1A
@@ -188,6 +189,18 @@ reset:
   sta SRAM,x
   dex
   bpl :-
+  ; companion probe block at $07E0 (spec 7): "BNPROBE1", frame u32, scene u16, phase u16, checksum u32, 12 x $A5
+  ldx #7
+: lda probestr,x
+  sta PROBE,x
+  dex
+  bpl :-
+  ldx #19
+  lda #$A5
+: sta PROBE+12,x
+  dex
+  cpx #7
+  bne :-
   lda #$A5
   sta rng
   lda #$5A
@@ -237,9 +250,22 @@ main:
   eor frame
   eor ent_xl
   sta hash+1
+  ; probe block: frame counter, scene/phase, checksum of the last frame (the running hash)
+  lda frame
+  sta PROBE+8
+  lda frame+1
+  sta PROBE+9
+  lda phase
+  sta PROBE+12
+  sta PROBE+14
+  lda hash
+  sta PROBE+16
+  lda hash+1
+  sta PROBE+17
   jmp main
 
 sigstr: .byte "BSTRES"
+probestr: .byte "BNPROBE1"
 
 ; ---------------------------------------------------------------- RNG (16-bit xorshift-ish)
 rand:

@@ -3892,6 +3892,15 @@ static const struct cartridge_db famicom_4p_db_list[] =
    }
 };
 
+/* names the companion export knows the CPU-bus RAM windows by (systems/nes.json): ram, sram, and the mapper RAM at 0x5C00 etc. */
+static const char *bn_region_name(int kb)
+{
+   if (kb < 2) return "ram";
+   if (kb >= 0x6000 / 1024 && kb < 0x8000 / 1024) return "sram";
+   if (kb >= 0x4000 / 1024 && kb < 0x6000 / 1024) return "exram";
+   return "maprom";
+}
+
 bool retro_load_game(const struct retro_game_info *info)
 {
    unsigned i, j;
@@ -4342,14 +4351,25 @@ bool retro_load_game(const struct retro_game_info *info)
    memset(descs, 0, sizeof(descs));
    i = 0;
 
+   /* BananaNES: neighbouring 1 KiB windows whose memory is contiguous become one region (RAM 0x0000 x 0x800,
+    * PRG-RAM 0x6000 x 0x2000, MMC5 ExRAM...): far fewer regions for the companion export, same addresses.
+    * The battery/work RAM is flagged SAVE_RAM so the export knows it is the save. */
    for (j = 0; j < desc_base; j++)
    {
        if (MMapPtrs[j] != NULL)
        {
+         if (i > 0 && descs[i - 1].addrspace == bn_region_name(j) && descs[i - 1].start + descs[i - 1].len == (size_t)j * 1024
+               && (uint8_t *)descs[i - 1].ptr + descs[i - 1].len == MMapPtrs[j])
+         {
+            descs[i - 1].len += 1024;
+            continue;
+         }
          descs[i].ptr    = MMapPtrs[j];
          descs[i].start  = j * 1024;
          descs[i].len    = 1024;
          descs[i].select = 0;
+         descs[i].addrspace = bn_region_name(j);
+         if (j >= 0x6000 / 1024 && j < 0x8000 / 1024) descs[i].flags = RETRO_MEMDESC_SAVE_RAM;
          i++;
        }
    }
