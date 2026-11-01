@@ -25,6 +25,10 @@
 #include        "fceu-types.h"
 #include        "x6502.h"
 #include        "banana.h"
+/* BananaNES: the NEON tile renderer is on by default on aarch64 (BANANA_NO_NEON_TILE turns it off) */
+#if defined(__ARM_NEON) && defined(__aarch64__) && !defined(BANANA_NO_NEON_TILE) && !defined(BANANA_NEON_TILE)
+#define BANANA_NEON_TILE 1
+#endif
 #if defined(__ARM_NEON) && defined(__aarch64__)
 #include <arm_neon.h>
 #endif

@@ -440,10 +440,11 @@ void X6502_Run(int32_t cycles)
 	int32_t lcount = X.count;
 	int32_t cb_sync, cb_cons, snd_base, snd_due = FCEU_SoundHookDue(), lsnd_lim;
 	/* per-instruction globals read from locals: they only change inside handlers/hooks (refreshed by SYNC_IN) */
-	uint8_t ldb = X.DB, lenc = encryptOpcodes;
+	uint8_t ldb = X.DB, lenc = encryptOpcodes, lrare;
 	uint32_t lirq = X.IRQlow;
 	void FP_FASTAPASS(1) (*lmap)(int) = MapIRQHook;
 	const int lover = overclocked;
+	lrare = (MapIRQHook != 0) | (encryptOpcodes != 0);
 	/* the code page the PC is in (plain cart ROM): the opcode fetch skips the page-type lookup; dropped whenever a
 	 * handler ran (a mapper write may have switched banks) */
 	uint32_t cp_page = 0xFFFF;
@@ -484,7 +485,7 @@ void X6502_Run(int32_t cycles)
 		if (!overclocked) sound_timestamp += _lts;		\
 	}
 	#endif
-	#define SYNC_IN() { lcount = X.count; cb_sync = lcount; cb_cons = lcount + X.tcount * 48; cp_page = 0xFFFF; ldb = X.DB; lirq = X.IRQlow; lmap = MapIRQHook; lenc = encryptOpcodes; }
+	#define SYNC_IN() { lcount = X.count; cb_sync = lcount; cb_cons = lcount + X.tcount * 48; cp_page = 0xFFFF; ldb = X.DB; lirq = X.IRQlow; lmap = MapIRQHook; lenc = encryptOpcodes; lrare = (lmap != 0) | (lenc != 0); }
 	/* the APU hook only counts down between its events: apply what is owed before the APU registers are touched */
 	#define SND_OWED() { if (!lover) { int32_t _o = (snd_base - cb_cons) / 48; if (_o) FCEU_SoundCPUHook(_o); snd_base = cb_cons; } }
 	#define SND_REFRESH() { snd_due = FCEU_SoundHookDue(); lsnd_lim = snd_base - 48 * snd_due; }
@@ -599,12 +600,24 @@ void X6502_Run(int32_t cycles)
 
 		lcount -= Cyc48[b1];
 
-		if (__builtin_expect(lmap != 0, 0)) {
-			int32_t temp = (cb_cons - lcount) / 48;
-			cb_cons = lcount;
-			SYNC_OUT();
-			lmap(temp);
-			SYNC_IN();
+		if (__builtin_expect(lrare != 0, 0)) {
+			if (lmap) {
+				int32_t temp = (cb_cons - lcount) / 48;
+				cb_cons = lcount;
+				SYNC_OUT();
+				lmap(temp);
+				SYNC_IN();
+			} else
+				cb_cons = lcount;
+			if (lenc) {
+				if (encryptOpcodes == 10) b1 = b1 &~0x36 | b1 >>1 &0x12 | b1 <<1 &0x24;
+				if (encryptOpcodes == 11) {
+					if (encryptOpcodesConfig &0x02) b1 = b1 &~0x30 | b1 >>1 &0x10 | b1 <<1 &0x20;
+					if (encryptOpcodesConfig &0x40) b1 = b1 &~0xC6 | b1 >>1 &0x42 | b1 <<1 &0x84;
+				}
+				if (encryptOpcodes == 12) b1 = b1 &~0xC6 | b1 >>1 &0x42 | b1 <<1 &0x84;
+				if (encryptOpcodes == 14) b1 = b1 &~0xC0 | b1 >>1 &0x40 | b1 <<1 &0x80;
+			}
 		} else
 			cb_cons = lcount;
 		if (!lover && lcount <= lsnd_lim) {
@@ -616,15 +629,6 @@ void X6502_Run(int32_t cycles)
 			SND_REFRESH();
 		}
 		_PC++;
-		if (__builtin_expect(lenc != 0, 0)) {
-			if (encryptOpcodes == 10) b1 = b1 &~0x36 | b1 >>1 &0x12 | b1 <<1 &0x24;
-			if (encryptOpcodes == 11) {
-				if (encryptOpcodesConfig &0x02) b1 = b1 &~0x30 | b1 >>1 &0x10 | b1 <<1 &0x20;
-				if (encryptOpcodesConfig &0x40) b1 = b1 &~0xC6 | b1 >>1 &0x42 | b1 <<1 &0x84;
-			}
-			if (encryptOpcodes == 12) b1 = b1 &~0xC6 | b1 >>1 &0x42 | b1 <<1 &0x84;
-			if (encryptOpcodes == 14) b1 = b1 &~0xC0 | b1 >>1 &0x40 | b1 <<1 &0x80;
-		}
 		switch (b1) {
 			#include "ops.h"
 		}
