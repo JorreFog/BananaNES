@@ -8,11 +8,11 @@ dev() { ~/bananaos-0.4.3/dev.sh "$D" "$@"; }
 dev 'rm -rf /run/nescheck; mkdir -p /run/nescheck'
 put() { dev "cat > /run/nescheck/$2 && chmod +x /run/nescheck/$2" < "$1"; }
 put $H/build/nesrun-a64 nesrun
-roms="$H/stressrom/out/stress-nes.nes $(ls $H/banana/roms/*.nes 2>/dev/null)"
+roms="$H/stressrom/out/stress-nes.nes $H/stressrom/out/irqtest-vrc3.nes $(ls $H/banana/roms/*.nes 2>/dev/null)"
 for r in $roms; do put $r $(basename $r); done
 i=0; for c in "$@"; do put $c core$i.so; i=$((i+1)); done
 for r in $roms; do
-  n=10800; case $r in */roms/*) n=3000;; esac
+  n=10800; case $r in */roms/*|*/irqtest*) n=3000;; esac
   b=$(basename $r); i=0; ref=
   for c in "$@"; do
     out=$(dev "cd /run/nescheck && NESRUN_AUTOPLAY=1 ./nesrun ./core$i.so $b $n" | tr ' ' '\n' | grep -E "^(video_crc|audio_crc|srm_crc|state_crc)=" | tr '\n' ' ')
