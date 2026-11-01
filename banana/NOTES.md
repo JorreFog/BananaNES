@@ -10,7 +10,7 @@ are shared with libretro-fceumm, so switching cores in Settings > Other systems 
   internal RAM and plain cartridge ROM reads and RAM writes (`rdplain`/`wrplain` kept by SetReadHandler/SetWriteHandler);
   code-page cache for opcode fetches; the APU's per-instruction hook only at its events (`FCEU_SoundHookDue`), owed cycles
   applied before any $4000-$4017 access.
-- `src/ppu.c`: BG pair LUT only rebuilt on palette change; sprite-on-line mask (NEON vld4 on aarch64) instead of a 64-entry scan
+- `src/ppu.c`: $2002 reads skip the partial-line render before pixel 248 (polling games); BG pair LUT only rebuilt on palette change; sprite-on-line mask (NEON vld4 on aarch64) instead of a 64-entry scan
   per line; NEON/memset passes on the line buffers.
 - `src/sound.c`: low-quality mixers add whole runs between channel events per 16-tick bucket.
 - `src/drivers/libretro/libretro.c`: NEON palette -> XRGB8888/RGB565 row blit; memory map with merged contiguous windows named
