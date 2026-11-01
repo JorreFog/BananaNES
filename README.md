@@ -1,3 +1,16 @@
+# BananaNES
+
+BananaNES is the NES / Famicom emulator of **BananaOS** (the Anbernic RG DS / RG DS Plus firmware): a fork of
+**libretro-fceumm** (FCE Ultra "mappers modified" by CaH4e3 and the FCEUmm / libretro developers, GPL-2.0,
+https://github.com/libretro/libretro-fceumm), tuned for the Cortex-A55 handhelds and built as a libretro core for
+BananaFront. Upstream's history and licence (`Copying`, GPL v2) are kept unchanged; changes live on the `banananes`
+branch and are described in `banana/NOTES.md`. All credit for the emulation core goes to the FCEUmm authors (see `Authors`).
+
+* `stressrom/` - the NES stress ROM (ca65, own code) used for every measurement.
+* `banana/tools/nesrun.c` - minimal libretro host for correctness checks (video/audio CRC, save-RAM dump).
+
+---
+
 # FCEUmm (libretro)
 
 FCEUmm is a libretro core based on FCE Ultra "mappers modified", an

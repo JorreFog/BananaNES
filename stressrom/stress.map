@@ -1,0 +1,50 @@
+Modules list:
+-------------
+stress.o:
+    CODE              Offs=000000  Size=00156E  Align=00001  Fill=0000
+    RODATA            Offs=000000  Size=0007B0  Align=00001  Fill=0000
+    BSS               Offs=000000  Size=0004B0  Align=00001  Fill=0000
+    ZEROPAGE          Offs=000000  Size=00004D  Align=00001  Fill=0000
+    MAP0              Offs=000000  Size=000200  Align=00001  Fill=0000
+    MAP1              Offs=000000  Size=000200  Align=00001  Fill=0000
+    MAP2              Offs=000000  Size=000200  Align=00001  Fill=0000
+    MAP3              Offs=000000  Size=0003A0  Align=00001  Fill=0000
+    HEADER            Offs=000000  Size=000010  Align=00001  Fill=0000
+    OAM               Offs=000000  Size=000100  Align=00001  Fill=0000
+    VECTORS           Offs=000000  Size=000006  Align=00001  Fill=0000
+    CHRROM            Offs=000000  Size=010000  Align=00001  Fill=0000
+    DPCM              Offs=000000  Size=001000  Align=00001  Fill=0000
+
+
+Segment list:
+-------------
+Name                   Start     End    Size  Align
+----------------------------------------------------
+CHRROM                000000  00FFFF  010000  00001
+HEADER                000000  00000F  000010  00001
+ZEROPAGE              000000  00004C  00004D  00001
+OAM                   000200  0002FF  000100  00001
+BSS                   000300  0007AF  0004B0  00001
+MAP0                  008000  0081FF  000200  00001
+MAP1                  008000  0081FF  000200  00001
+MAP2                  008000  0081FF  000200  00001
+MAP3                  008000  00839F  0003A0  00001
+DPCM                  00C000  00CFFF  001000  00001
+RODATA                00D000  00D7AF  0007B0  00001
+CODE                  00E000  00F56D  00156E  00001
+VECTORS               00FFFA  00FFFF  000006  00001
+
+
+Exports list by name:
+---------------------
+
+
+
+Exports list by value:
+----------------------
+
+
+
+Imports list:
+-------------
+

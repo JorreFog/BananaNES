@@ -5,3 +5,8 @@
 build.log
 *.dll
 *.dylib
+stressrom/out/
+stressrom/*.o
+stressrom/chr.bin
+stressrom/dpcm.bin
+stressrom/data.inc
