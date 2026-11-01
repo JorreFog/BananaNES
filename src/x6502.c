@@ -475,10 +475,12 @@ void X6502_Run(int32_t cycles)
 	#define RdMem(A_) ({										\
 		uint32_t _ma = (A_);								\
 		uint8_t _mv;										\
-		switch (rdplain[_ma >> 11]) {						\
-		case 1: _mv = RAM[_ma & 0x7FF]; break;				\
-		case 2: _mv = Page[_ma >> 11][_ma]; break;			\
-		default:											\
+		uint32_t _mk = rdplain[_ma >> 11];					\
+		if (__builtin_expect(_mk == 2, 1))					\
+			_mv = Page[_ma >> 11][_ma];						\
+		else if (__builtin_expect(_mk == 1, 1))				\
+			_mv = RAM[_ma & 0x7FF];							\
+		else {												\
 			SYNC_OUT();										\
 			if (_ma - 0x4000u < 0x18u) SND_OWED();			\
 			BST_R(_ma);										\
@@ -491,7 +493,7 @@ void X6502_Run(int32_t cycles)
 	#define WrMem(A_, V_) {										\
 		uint32_t _wa = (A_);								\
 		uint8_t _wv = (V_);									\
-		if (_wa < 0x2000 && wrplain[_wa >> 11]) RAM[_wa & 0x7FF] = _wv;	\
+		if (__builtin_expect(_wa < 0x2000 && wrplain[_wa >> 11], 1)) RAM[_wa & 0x7FF] = _wv;	\
 		else {												\
 			SYNC_OUT();										\
 			if (_wa - 0x4000u < 0x18u) SND_OWED();			\
