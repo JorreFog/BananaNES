@@ -199,10 +199,12 @@ static uint8_t * MMC5BGVRAMADR(uint32_t V) {
 	} else return &MMC5BGVPage[(V) >> 10][(V)];
 }
 
+static int32_t sphitx;	/* (defined below) */
+static void LineUpdateForRead(void);
 static DECLFR(A2002) {
 	uint8_t ret;
 
-	FCEUPPU_LineUpdate();
+	LineUpdateForRead();
 	ret = PPU_status;
 	ret |= PPUGenLatch & 0x1F;
 
@@ -420,6 +422,19 @@ void FCEUPPU_LineUpdate(void) {
 	if (Pline) {
 		int l = GETLASTPIXEL;
 		RefreshLine(l);
+	}
+}
+
+/* BananaNES: a status read ($2002) only needs the line drawn up to now when a sprite-0 hit can show up in it or a zapper hook
+ * wants the pixels. Rendering in two or one go is the same picture EXCEPT around the end of the line: RefreshLine runs Fixit1
+ * (the vertical increment) after the first call that reaches pixel 268 (TOFIXNUM), and the two pre-fetch tiles that follow
+ * (the BG pipeline's stale state) see the new fine Y. So a read in the last tile or two still flushes exactly as before;
+ * earlier reads (80 % of a polling game's status reads) skip the render, which happens in one piece later. */
+static void LineUpdateForRead(void) {
+	if (Pline) {
+		int l = GETLASTPIXEL;
+		if (l >= 248 || InputScanlineHook || (sphitx != 0x100 && !(PPU_status & 0x40)))
+			RefreshLine(l);
 	}
 }
 
