@@ -5,11 +5,11 @@ instrumented core, (2) freely licensed homebrew games, (3) documented limits. A 
 limits is **synthetic**. Nothing is validated against a commercial game (none available): every row says what it was checked against.
 
 Fingerprint = per-frame counters from `-DBANANA_STATS` (`BANANANES_STATS=file`; tool `banana/tools/fingerprint.py`),
-mean / p95 / max over 7200 frames (scripted pad for the homebrew). Date 2026-11-01, commit see git log.
+mean / p95 / max over 7200 frames (scripted pad for the homebrew; stress ROM: its 8 scenes = 12000-frame loop). Date 2026-11-01, commit see git log.
 
 | ROM | insn | $2005 w | $2007 w | $2002 polls | APU w | mapper w | DMC bytes | IRQs | sprites on lines (sum/frame) | max/line | lines with overflow |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| stress-nes (MMC3) all scenes | 9518 / 9728 / 11138 | 10 / 58 / 58 | 6 / 26 / 2296 | 68 / 335 / 336 | 5 / 11 / 18 | 40 / 210 / 210 | 7 / 24 / 30 | 4 / 28 / 28 | 272 / 506 / 512 | 7 / 8 / 8 | 5 / 16 / 32 |
+| stress-nes (MMC3) all 8 scenes | 9367 / 9674 / 11363 | 9 / 56 / 56 | 6 / 26 / 2296 | 993 / 2644 / 2662 | 5 / 11 / 18 | 38 / 203 / 203 | 7 / 24 / 30 | 4 / 27 / 27 | 271 / 506 / 512 | 7 / 8 / 8 | 5 / 16 / 32 |
 | Nova the Squirrel 1.0.6a (MMC1) | 9705 / 9918 / 9962 | 1 / 2 / 6 | 139 / 741 / 3181 | 0 / 1 / 1 | 5 / 12 / 32 | 10 / 25 / 85 | 0 | 0 | 91 / 352 / 352 | 2 / 6 / 8 | 0 / 0 / 6 |
 | Thwaite 0.04 (NROM) | 9695 / 9764 / 10081 | 2 / 2 / 3 | 5 / 64 / 3534 | 60 / 0 / 1815 | 7 / 10 / 13 | 0 | 0 | 0 | 228 / 352 / 412 | 5 / 8 / 8 | 1 / 8 / 24 |
 | 240p Test Suite NES 0.23 (UxROM) | 9576 / 9925 / 11113 | 2 / 2 / 14 | 270 / 903 / 3095 | 4 / 0 / 173 | 3 / 4 / 4 | 1 / 2 / 30 | 0 | 0 | 368 / 736 / 736 | 5 / 8 / 8 | 0 / 0 / 0 |
@@ -29,7 +29,7 @@ Reading it:
 
 | Scene | Models | Evidence | Status |
 |---|---|---|---|
-| title | menus/title | fingerprint (low-load end), Nova/240p text screens | partly validated |
+| title | menus/title; busy-wait on $2002 (2.6k status reads/frame, as polling games do; Thwaite's boot loop reaches 1815) | fingerprint (low-load end), Nova/240p text screens | partly validated |
 | platformer | SMB3, Mega Man, Kirby: column streaming + sprite-0 bar | $2002 spin 335/frame p95 = a status-bar game (SMB1: tens to hundreds of polls); $2007 ~ scroll uploads | synthetic + fingerprint-range |
 | parallax-irq | MMC3 raster effects | IRQ counts exceed anything homebrew here does; documented MMC3 usage (nesdev "MMC3"): status bars, split scrolls | synthetic (upper bound) |
 | shooter | Gradius/R-Type sprite pressure | 57 sprites, overflow lines; Thwaite's sprite counts are lower (max 8/line, 412/frame) | synthetic (documented 64/8 limits) |
