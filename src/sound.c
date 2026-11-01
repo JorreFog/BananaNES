@@ -650,6 +650,26 @@ static void RDoSQ2(void) {
 	RDoSQ(1);
 }
 
+
+/* BananaNES: the low-quality mixers add one value to Wave[] per sub-sample tick (V) and only change that value when a
+ * channel's accumulator runs out.  Between two such events the loop is a plain run of "Wave[V >> 4] += total": do it
+ * per 16-tick bucket instead of per tick (identical integers, ~12 000 iterations a frame less per channel group). */
+static INLINE int32_t lq_run_len(int32_t acc, int32_t inie)
+{
+	if (acc <= 0) return 1;
+	if (inie <= 0) return 0x7FFFFFFF;
+	return (acc + inie - 1) / inie;
+}
+static INLINE void lq_wave_run(int32_t V, int32_t k, int32_t val)
+{
+	int32_t e = V + k, b0 = V >> 4, b1 = (e - 1) >> 4, b;
+	if (!val) return;
+	if (b0 == b1) { Wave[b0] += val * k; return; }
+	Wave[b0] += val * (((b0 + 1) << 4) - V);
+	for (b = b0 + 1; b < b1; b++) Wave[b] += val << 4;
+	Wave[b1] += val * (e - (b1 << 4));
+}
+
 static void RDoSQLQ(void) {
 	int32_t start, end;
 	int32_t V;
@@ -728,7 +748,14 @@ static void RDoSQLQ(void) {
 		 * to Wave[V>>4] - genuinely no-op for ~30000 NES cycles
 		 * per frame. Skip the loop entirely. */
 	} else {
-		for (V = start; V < end; V++) {
+		for (V = start; V < end; ) {
+			int32_t k = end - V, kk;
+			kk = lq_run_len(sqacc[0], inie[0]); if (kk < k) k = kk;
+			kk = lq_run_len(sqacc[1], inie[1]); if (kk < k) k = kk;
+			lq_wave_run(V, k, totalout);
+			V += k;
+			sqacc[0] -= k * inie[0];
+			sqacc[1] -= k * inie[1];
 			/* int tmpamp=0;
 			if(RectDutyCount[0]<rthresh[0])
 			 tmpamp=amp[0];
@@ -738,10 +765,6 @@ static void RDoSQLQ(void) {
 			tmpamp = wlookup1[ ttable[0][RectDutyCount[0]] + ttable[1][RectDutyCount[1]] ];
 			*/
 
-			Wave[V >> 4] += totalout;	/* tmpamp; */
-
-			sqacc[0] -= inie[0];
-			sqacc[1] -= inie[1];
 
 			if (sqacc[0] <= 0) {
  rea:
@@ -878,11 +901,14 @@ static void RDoTriangleNoisePCMLQ(void) {
 	totalout = wl2(scaled_tcout + noiseout + scaled_dmc);
 
 	if (inie[0] && inie[1]) {
-		for (V = start; V < end; V++) {
-			Wave[V >> 4] += totalout;
-
-			lq_triacc -= inie[0];
-			lq_noiseacc -= inie[1];
+		for (V = start; V < end; ) {
+			int32_t k = end - V, kk;
+			kk = lq_run_len(lq_triacc, inie[0]); if (kk < k) k = kk;
+			kk = lq_run_len(lq_noiseacc, inie[1]); if (kk < k) k = kk;
+			lq_wave_run(V, k, totalout);
+			V += k;
+			lq_triacc -= k * inie[0];
+			lq_noiseacc -= k * inie[1];
 
 			if (lq_triacc <= 0) {
  rea:
@@ -915,10 +941,12 @@ static void RDoTriangleNoisePCMLQ(void) {
 			}	/* noiseacc<=0 */
 		}	/* for(V=... */
 	} else if (inie[0]) {
-		for (V = start; V < end; V++) {
-			Wave[V >> 4] += totalout;
-
-			lq_triacc -= inie[0];
+		for (V = start; V < end; ) {
+			int32_t k = end - V, kk;
+			kk = lq_run_len(lq_triacc, inie[0]); if (kk < k) k = kk;
+			lq_wave_run(V, k, totalout);
+			V += k;
+			lq_triacc -= k * inie[0];
 
 			if (lq_triacc <= 0) {
  area:
@@ -935,9 +963,12 @@ static void RDoTriangleNoisePCMLQ(void) {
 			}
 		}
 	} else if (inie[1]) {
-		for (V = start; V < end; V++) {
-			Wave[V >> 4] += totalout;
-			lq_noiseacc -= inie[1];
+		for (V = start; V < end; ) {
+			int32_t k = end - V, kk;
+			kk = lq_run_len(lq_noiseacc, inie[1]); if (kk < k) k = kk;
+			lq_wave_run(V, k, totalout);
+			V += k;
+			lq_noiseacc -= k * inie[1];
 			if (lq_noiseacc <= 0) {
  area2:
 				/* used to be added <<(16+2) when the noise table
@@ -955,8 +986,7 @@ static void RDoTriangleNoisePCMLQ(void) {
 			}	/* noiseacc<=0 */
 		}
 	} else {
-		for (V = start; V < end; V++)
-			Wave[V >> 4] += totalout;
+		lq_wave_run(start, end - start, totalout);
 	}
 }
 
